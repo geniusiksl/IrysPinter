@@ -357,20 +357,20 @@ class SolPinterAPITest:
         """Test CORS configuration"""
         print("\n🔍 Testing CORS configuration...")
         try:
-            # Make an OPTIONS request to test CORS
-            response = self.session.options(f"{API_BASE_URL}/pins")
+            # Test with Origin header to check CORS
+            headers = {'Origin': 'https://example.com'}
+            response = self.session.get(f"{API_BASE_URL}/", headers=headers)
             
             # Check if CORS headers are present
             cors_headers = [
                 'Access-Control-Allow-Origin',
-                'Access-Control-Allow-Methods',
-                'Access-Control-Allow-Headers'
+                'Access-Control-Allow-Credentials'
             ]
             
-            has_cors = any(header in response.headers for header in cors_headers)
+            has_cors = any(header.lower() in [h.lower() for h in response.headers] for header in cors_headers)
             
-            if has_cors or response.status_code in [200, 204]:
-                print("✅ CORS configuration appears to be working")
+            if has_cors and response.status_code == 200:
+                print("✅ CORS configuration is working correctly")
                 return True
             else:
                 print("❌ CORS configuration may have issues")
