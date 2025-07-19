@@ -351,7 +351,14 @@ async def purchase_pin(pin_id: str, request: dict):
         
         # Return updated pin
         updated_pin = await db.pins.find_one({"id": pin_id})
-        updated_pin["id"] = str(updated_pin["_id"]) if "_id" in updated_pin else updated_pin.get("id")
+        if updated_pin:
+            # Convert ObjectId to string and remove _id field
+            updated_pin["id"] = str(updated_pin.pop("_id", updated_pin.get("id")))
+            # Convert datetime objects to ISO format strings
+            if "created_at" in updated_pin:
+                updated_pin["created_at"] = updated_pin["created_at"].isoformat() if hasattr(updated_pin["created_at"], 'isoformat') else str(updated_pin["created_at"])
+            if "updated_at" in updated_pin:
+                updated_pin["updated_at"] = updated_pin["updated_at"].isoformat() if hasattr(updated_pin["updated_at"], 'isoformat') else str(updated_pin["updated_at"])
         
         return updated_pin
         
