@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 .App {
     text-align: center;
 }
@@ -35,4 +39,76 @@
     to {
         transform: rotate(360deg);
     }
+}
+
+/* Masonry layout styles */
+.masonry-grid {
+    display: -webkit-box;
+    display: -ms-flexbox;
+    display: flex;
+    margin-left: -16px;
+    width: auto;
+}
+
+.masonry-grid-column {
+    padding-left: 16px;
+    background-clip: padding-box;
+}
+
+.masonry-grid-column > div {
+    margin-bottom: 16px;
+}
+
+/* Wallet button overrides */
+.wallet-adapter-button {
+    font-family: inherit !important;
+    font-weight: 600 !important;
+}
+
+/* Text truncation utilities */
+.line-clamp-2 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+
+.line-clamp-3 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+}
+
+/* Hover effects */
+.hover-scale {
+    transition: transform 0.2s ease;
+}
+
+.hover-scale:hover {
+    transform: scale(1.02);
+}
+
+/* Loading spinner */
+.spinner {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Scrollbar styling */
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
 }
