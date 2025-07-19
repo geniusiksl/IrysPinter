@@ -1,5 +1,4 @@
 import React from "react";
-import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 
 const Header = ({ onCreateClick, isWalletConnected }) => {
   return (
@@ -26,7 +25,14 @@ const Header = ({ onCreateClick, isWalletConnected }) => {
               <span>Create Pin</span>
             </button>
           )}
-          <WalletMultiButton className="!bg-gray-100 !text-gray-900 hover:!bg-gray-200" />
+          
+          {/* Mock wallet connection status */}
+          <div className="flex items-center space-x-2 bg-gray-100 px-4 py-2 rounded-full">
+            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+            <span className="text-gray-700 font-medium text-sm">
+              A1B2...X4Y5Z (Connected)
+            </span>
+          </div>
         </div>
       </div>
     </header>
