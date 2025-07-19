@@ -14,9 +14,9 @@ import base64
 import json
 import requests
 from solana.rpc.api import Client
-from solana.keypair import Keypair
-from solana.publickey import PublicKey
-from solana.transaction import Transaction
+from solders.keypair import Keypair
+from solders.pubkey import Pubkey
+from solders.transaction import Transaction
 import base58
 
 ROOT_DIR = Path(__file__).parent
