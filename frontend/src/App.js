@@ -6,8 +6,6 @@ import { clusterApiUrl } from "@solana/web3.js";
 import {
   PhantomWalletAdapter,
   SolflareWalletAdapter,
-  BackpackWalletAdapter,
-  GlowWalletAdapter,
 } from "@solana/wallet-adapter-wallets";
 import { useMemo } from "react";
 import { Toaster } from "react-hot-toast";
@@ -24,8 +22,6 @@ function App() {
     () => [
       new PhantomWalletAdapter(),
       new SolflareWalletAdapter(),
-      new BackpackWalletAdapter(),
-      new GlowWalletAdapter(),
     ],
     []
   );
