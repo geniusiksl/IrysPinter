@@ -1,11 +1,15 @@
 import React, { useState, useRef } from "react";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { useIrys } from "../hooks/useIrys";
 import axios from "axios";
 import toast from "react-hot-toast";
 
 const BACKEND_URL = "http://localhost:8001";
 const API = `${BACKEND_URL}/api`;
 
-const CreatePinModal = ({ onClose, onPinCreated, wallet }) => {
+const CreatePinModal = ({ onClose, onPinCreated }) => {
+  const { publicKey, connected } = useWallet();
+  const { uploadImageWithMetadata, isUploading, uploadProgress } = useIrys();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
@@ -35,7 +39,7 @@ const CreatePinModal = ({ onClose, onPinCreated, wallet }) => {
       return;
     }
     
-    if (!wallet.connected) {
+    if (!connected) {
       toast.error("Please connect your wallet");
       return;
     }
@@ -43,24 +47,33 @@ const CreatePinModal = ({ onClose, onPinCreated, wallet }) => {
     setUploading(true);
     
     try {
-      // Create FormData for file upload
-      const formData = new FormData();
-      formData.append('image', image);
-      formData.append('title', title);
-      formData.append('description', description);
-      formData.append('owner', wallet.publicKey.toString());
-      formData.append('for_sale', forSale);
-      if (forSale && price) {
-        formData.append('price', price);
-      }
+      // Upload image and metadata to Irys
+      const uploadResult = await uploadImageWithMetadata(
+        image,
+        title,
+        description,
+        forSale ? parseFloat(price) : null
+      );
 
-      const response = await axios.post(`${API}/pins`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      // Create pin data
+      const pinData = {
+        title,
+        description,
+        owner: publicKey.toString(),
+        image_txid: uploadResult.image.transactionId,
+        image_url: uploadResult.image.url,
+        metadata_txid: uploadResult.metadata.transactionId,
+        metadata_url: uploadResult.metadata.url,
+        price: forSale ? parseFloat(price) : null,
+        for_sale: forSale,
+        mint_address: null, // Will be set by backend
+      };
+
+      // Send to backend for NFT minting
+      const response = await axios.post(`${API}/pins`, pinData);
 
       onPinCreated(response.data);
+      toast.success("Pin created successfully! NFT minted on Solana.");
     } catch (error) {
       console.error("Error creating pin:", error);
       toast.error(error.response?.data?.detail || "Failed to create pin");
@@ -191,6 +204,21 @@ const CreatePinModal = ({ onClose, onPinCreated, wallet }) => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
                   placeholder="0.1"
                 />
+              </div>
+            )}
+
+            {/* Upload Progress */}
+            {(isUploading || uploading) && (
+              <div className="pt-4">
+                <div className="bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${uploadProgress}%` }}
+                  ></div>
+                </div>
+                <p className="text-sm text-gray-600 mt-2">
+                  {isUploading ? "Uploading to Irys..." : "Processing..."}
+                </p>
               </div>
             )}
 

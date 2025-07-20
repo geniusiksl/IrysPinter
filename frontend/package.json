@@ -11,7 +11,15 @@
     "react-scripts": "5.0.1",
     "react-masonry-css": "^1.0.16",
     "react-hot-toast": "^2.4.1",
-    "@craco/craco": "^7.1.0"
+    "@craco/craco": "^7.1.0",
+    "@solana/web3.js": "^1.87.6",
+    "@solana/wallet-adapter-react": "^0.15.35",
+    "@solana/wallet-adapter-react-ui": "^0.9.34",
+    "@solana/wallet-adapter-base": "^0.9.23",
+    "@solana/wallet-adapter-wallets": "^0.19.23",
+    "@metaplex-foundation/js": "^0.20.1",
+    "@irys/upload": "^0.1.0",
+    "@irys/upload-solana": "^0.1.0"
   },
   "scripts": {
     "start": "craco start",

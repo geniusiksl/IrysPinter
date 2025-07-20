@@ -1,6 +1,10 @@
 import React from "react";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 
-const Header = ({ onCreateClick, isWalletConnected }) => {
+const Header = ({ onCreateClick, onRoyaltyClick }) => {
+  const { publicKey, connected } = useWallet();
+
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-gray-200 px-4 py-3">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -16,23 +20,37 @@ const Header = ({ onCreateClick, isWalletConnected }) => {
         </div>
 
         <div className="flex items-center space-x-4">
-          {isWalletConnected && (
-            <button
-              onClick={onCreateClick}
-              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-full font-semibold transition-colors flex items-center space-x-2"
-            >
-              <span>+</span>
-              <span>Create Pin</span>
-            </button>
+          {connected && (
+            <>
+              <button
+                onClick={onCreateClick}
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-full font-semibold transition-colors flex items-center space-x-2"
+              >
+                <span>+</span>
+                <span>Create Pin</span>
+              </button>
+              
+              <button
+                onClick={onRoyaltyClick}
+                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-full font-semibold transition-colors flex items-center space-x-2"
+              >
+                <span>💰</span>
+                <span>Royalties</span>
+              </button>
+            </>
           )}
           
-          {/* Mock wallet connection status */}
-          <div className="flex items-center space-x-2 bg-gray-100 px-4 py-2 rounded-full">
-            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-            <span className="text-gray-700 font-medium text-sm">
-              A1B2...X4Y5Z (Connected)
-            </span>
-          </div>
+          {/* Solana Wallet Connection */}
+          <WalletMultiButton className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-full font-semibold transition-colors" />
+          
+          {connected && publicKey && (
+            <div className="flex items-center space-x-2 bg-gray-100 px-4 py-2 rounded-full">
+              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+              <span className="text-gray-700 font-medium text-sm">
+                {publicKey.toString().slice(0, 4)}...{publicKey.toString().slice(-4)} (Connected)
+              </span>
+            </div>
+          )}
         </div>
       </div>
     </header>

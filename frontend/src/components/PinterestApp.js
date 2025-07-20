@@ -1,25 +1,23 @@
 import React, { useState, useEffect } from "react";
+import { useWallet } from "@solana/wallet-adapter-react";
 import Header from "./Header";
 import PinGrid from "./PinGrid";
 import CreatePinModal from "./CreatePinModal";
 import PinModal from "./PinModal";
+import RoyaltyInfo from "./RoyaltyInfo";
 import axios from "axios";
 import toast from "react-hot-toast";
 
 const BACKEND_URL = "http://localhost:8001";
 const API = `${BACKEND_URL}/api`;
 
-// Mock wallet object for demo
-const mockWallet = {
-  connected: true,
-  publicKey: { toString: () => "A1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q7R8S9T0U1V2W3X4Y5Z" }
-};
-
 const PinterestApp = () => {
+  const { publicKey, connected } = useWallet();
   const [pins, setPins] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedPin, setSelectedPin] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showRoyaltyInfo, setShowRoyaltyInfo] = useState(false);
 
   useEffect(() => {
     fetchPins();
@@ -71,7 +69,7 @@ const PinterestApp = () => {
     <div className="min-h-screen bg-white">
       <Header 
         onCreateClick={() => setShowCreateModal(true)}
-        isWalletConnected={true}
+        onRoyaltyClick={() => setShowRoyaltyInfo(true)}
       />
       
       <div className="py-6">
@@ -92,14 +90,14 @@ const PinterestApp = () => {
       <PinGrid 
         pins={pins} 
         onPinClick={handlePinClick}
-        currentWallet={mockWallet.publicKey?.toString()}
+        currentWallet={publicKey?.toString()}
       />
 
       {showCreateModal && (
         <CreatePinModal
           onClose={() => setShowCreateModal(false)}
           onPinCreated={handlePinCreated}
-          wallet={mockWallet}
+          wallet={{ publicKey, connected }}
         />
       )}
 
@@ -109,9 +107,28 @@ const PinterestApp = () => {
           onClose={() => setSelectedPin(null)}
           onPurchase={handlePinPurchased}
           onPinUpdated={handlePinUpdated}
-          wallet={mockWallet}
-          currentWallet={mockWallet.publicKey?.toString()}
+          wallet={{ publicKey, connected }}
+          currentWallet={publicKey?.toString()}
         />
+      )}
+
+      {showRoyaltyInfo && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Royalty Management</h2>
+                <button
+                  onClick={() => setShowRoyaltyInfo(false)}
+                  className="text-gray-400 hover:text-gray-600 text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+              <RoyaltyInfo />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
