@@ -45,13 +45,32 @@ const PinCard = ({ pin, onClick, isOwner }) => {
       className="mb-4 cursor-pointer group relative bg-white rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300"
       onClick={onClick}
     >
-      <div className="relative">
-        <img
-          src={pin.image_url || `https://gateway.irys.xyz/${pin.image_txid}`}
-          alt={pin.title}
-          className="w-full object-cover"
-          loading="lazy"
-        />
+      <div className="relative bg-gray-100">
+                {pin.image_url ? (
+          <img
+            src={pin.image_url}
+            alt={pin.title}
+            className="w-full object-cover"
+            loading="lazy"
+            onError={(e) => {
+              console.error("Failed to load image:", pin.image_url);
+              e.target.style.display = 'none';
+              e.target.nextSibling.style.display = 'flex';
+            }}
+            style={{ 
+              minHeight: '200px',
+              maxHeight: '400px',
+              objectFit: 'cover'
+            }}
+          />
+        ) : null}
+        <div 
+          className="flex flex-col items-center justify-center text-gray-500 p-8"
+          style={{ display: pin.image_url ? 'none' : 'flex' }}
+        >
+          <div className="text-4xl mb-2">🖼️</div>
+          <p className="text-sm font-medium">No image</p>
+        </div>
         
         {/* Overlay on hover */}
         <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity duration-300" />

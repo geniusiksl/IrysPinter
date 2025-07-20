@@ -6,7 +6,7 @@ import PinModal from "./PinModal";
 import axios from "axios";
 import toast from "react-hot-toast";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const BACKEND_URL = "http://localhost:8001";
 const API = `${BACKEND_URL}/api`;
 
 // Mock wallet object for demo
@@ -28,6 +28,7 @@ const PinterestApp = () => {
   const fetchPins = async () => {
     try {
       const response = await axios.get(`${API}/pins`);
+
       setPins(response.data);
       setLoading(false);
     } catch (error) {
@@ -51,6 +52,11 @@ const PinterestApp = () => {
     setPins(pins.map(p => p.id === updatedPin.id ? updatedPin : p));
     setSelectedPin(updatedPin);
     toast.success("NFT purchased successfully!");
+  };
+
+  const handlePinUpdated = (updatedPin) => {
+    setPins(pins.map(p => p.id === updatedPin.id ? updatedPin : p));
+    setSelectedPin(updatedPin);
   };
 
   if (loading) {
@@ -102,6 +108,7 @@ const PinterestApp = () => {
           pin={selectedPin}
           onClose={() => setSelectedPin(null)}
           onPurchase={handlePinPurchased}
+          onPinUpdated={handlePinUpdated}
           wallet={mockWallet}
           currentWallet={mockWallet.publicKey?.toString()}
         />

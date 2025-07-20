@@ -2,27 +2,30 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const BACKEND_URL = "http://localhost:8001";
 const API = `${BACKEND_URL}/api`;
 
-const PinModal = ({ pin, onClose, onPurchase, wallet, currentWallet }) => {
+const PinModal = ({ pin, onClose, onPurchase, onPinUpdated, wallet, currentWallet }) => {
+  const [pinData, setPinData] = useState(pin);
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
   const [hasLiked, setHasLiked] = useState(false);
   const [loading, setLoading] = useState(false);
   const [commentLoading, setCommentLoading] = useState(false);
 
-  const isOwner = pin.owner === currentWallet;
-  const canBuy = pin.for_sale && !isOwner && wallet.connected;
+  const isOwner = pinData.owner === currentWallet;
+  const canBuy = pinData.for_sale && !isOwner && wallet.connected;
 
   useEffect(() => {
+    // Use the pin data passed as prop, but fetch additional data if needed
+    setPinData(pin);
     fetchComments();
     checkIfLiked();
   }, [pin.id]);
 
   const fetchComments = async () => {
     try {
-      const response = await axios.get(`${API}/pins/${pin.id}/comments`);
+      const response = await axios.get(`${API}/pins/${pinData.id}/comments`);
       setComments(response.data);
     } catch (error) {
       console.error("Error fetching comments:", error);
@@ -33,7 +36,7 @@ const PinModal = ({ pin, onClose, onPurchase, wallet, currentWallet }) => {
     if (!wallet.connected) return;
     
     try {
-      const response = await axios.get(`${API}/pins/${pin.id}/likes/${wallet.publicKey.toString()}`);
+      const response = await axios.get(`${API}/pins/${pinData.id}/likes/${wallet.publicKey.toString()}`);
       setHasLiked(response.data.has_liked);
     } catch (error) {
       console.error("Error checking like status:", error);
@@ -48,11 +51,18 @@ const PinModal = ({ pin, onClose, onPurchase, wallet, currentWallet }) => {
 
     try {
       setLoading(true);
-      const response = await axios.post(`${API}/pins/${pin.id}/like`, {
+      const response = await axios.post(`${API}/pins/${pinData.id}/like`, {
         user: wallet.publicKey.toString()
       });
       
+      // Update like status and count
       setHasLiked(!hasLiked);
+      const updatedPin = {
+        ...pinData,
+        likes: response.data.likes || (pinData.likes || 0) + 1
+      };
+      setPinData(updatedPin);
+      onPinUpdated(updatedPin);
       toast.success(hasLiked ? "Unliked!" : "Liked!");
     } catch (error) {
       console.error("Error liking pin:", error);
@@ -74,13 +84,20 @@ const PinModal = ({ pin, onClose, onPurchase, wallet, currentWallet }) => {
 
     try {
       setCommentLoading(true);
-      const response = await axios.post(`${API}/pins/${pin.id}/comment`, {
+      const response = await axios.post(`${API}/pins/${pinData.id}/comment`, {
         user: wallet.publicKey.toString(),
         content: newComment.trim()
       });
       
       setComments([response.data, ...comments]);
       setNewComment("");
+      // Update comment count
+      const updatedPin = {
+        ...pinData,
+        comments: (pinData.comments || 0) + 1
+      };
+      setPinData(updatedPin);
+      onPinUpdated(updatedPin);
       toast.success("Comment added!");
     } catch (error) {
       console.error("Error adding comment:", error);
@@ -98,7 +115,7 @@ const PinModal = ({ pin, onClose, onPurchase, wallet, currentWallet }) => {
 
     try {
       setLoading(true);
-      const response = await axios.post(`${API}/pins/${pin.id}/purchase`, {
+      const response = await axios.post(`${API}/pins/${pinData.id}/purchase`, {
         buyer: wallet.publicKey.toString()
       });
       
@@ -117,12 +134,35 @@ const PinModal = ({ pin, onClose, onPurchase, wallet, currentWallet }) => {
       <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <div className="md:flex">
           {/* Image Section */}
-          <div className="md:w-1/2">
-            <img
-              src={pin.image_url || `https://gateway.irys.xyz/${pin.image_txid}`}
-              alt={pin.title}
-              className="w-full h-full object-cover"
-            />
+          <div className="md:w-1/2 bg-gray-100 flex items-center justify-center min-h-[400px]">
+            {pinData.image_url ? (
+              <img
+                src={pinData.image_url}
+                alt={pinData.title}
+                className="w-full h-full object-contain max-h-[600px]"
+                onError={(e) => {
+                  console.error("Failed to load image:", pinData.image_url);
+                  e.target.style.display = 'none';
+                  e.target.nextSibling.style.display = 'flex';
+                }}
+              />
+            ) : null}
+            <div 
+              className="flex flex-col items-center justify-center text-gray-500 p-8"
+              style={{ display: pinData.image_url ? 'none' : 'flex' }}
+            >
+              <div className="text-6xl mb-4">🖼️</div>
+              <p className="text-lg font-medium">Image not available</p>
+              <p className="text-sm text-gray-400 mt-2">
+                {pinData.image_txid ? `TXID: ${pinData.image_txid.slice(0, 8)}...` : 'No image data'}
+              </p>
+              <button 
+                onClick={() => window.open(pinData.image_url, '_blank')}
+                className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              >
+                Open Image in New Tab
+              </button>
+            </div>
           </div>
 
           {/* Content Section */}
@@ -131,31 +171,31 @@ const PinModal = ({ pin, onClose, onPurchase, wallet, currentWallet }) => {
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                  {pin.title}
+                  {pinData.title}
                 </h2>
-                {pin.description && (
-                  <p className="text-gray-600 mb-4">{pin.description}</p>
+                {pinData.description && (
+                  <p className="text-gray-600 mb-4">{pinData.description}</p>
                 )}
                 
                 {/* NFT Info */}
                 <div className="bg-gray-50 rounded-lg p-3 mb-4">
                   <div className="text-sm text-gray-500 mb-1">NFT Details</div>
                   <div className="text-xs text-gray-400 font-mono">
-                    Mint: {pin.mint_address?.slice(0, 8)}...{pin.mint_address?.slice(-8)}
+                    Mint: {pinData.mint_address?.slice(0, 8)}...{pinData.mint_address?.slice(-8)}
                   </div>
                   <div className="text-xs text-gray-400">
-                    Owner: {isOwner ? "You" : `${pin.owner?.slice(0, 8)}...${pin.owner?.slice(-8)}`}
+                    Owner: {isOwner ? "You" : `${pinData.owner?.slice(0, 8)}...${pinData.owner?.slice(-8)}`}
                   </div>
                 </div>
 
                 {/* Price and Purchase */}
-                {pin.for_sale && (
+                {pinData.for_sale && (
                   <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
                     <div className="flex items-center justify-between">
                       <div>
                         <div className="text-sm text-green-600 font-medium">For Sale</div>
                         <div className="text-2xl font-bold text-green-700">
-                          {pin.price} SOL
+                          {pinData.price} SOL
                         </div>
                       </div>
                       {canBuy && (
@@ -193,14 +233,14 @@ const PinModal = ({ pin, onClose, onPurchase, wallet, currentWallet }) => {
               >
                 <span>{hasLiked ? "💜" : "🤍"}</span>
                 <span>{hasLiked ? "Liked" : "Like"}</span>
-                <span className="text-sm">({pin.likes || 0})</span>
+                <span className="text-sm">({pinData.likes || 0})</span>
               </button>
             </div>
 
             {/* Comments Section */}
             <div className="space-y-4">
               <h3 className="font-semibold text-gray-900">
-                Comments ({pin.comments || 0})
+                Comments ({pinData.comments || 0})
               </h3>
 
               {/* Add Comment */}

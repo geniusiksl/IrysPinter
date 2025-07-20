@@ -99,7 +99,7 @@ sample_pins = [
         "owner": "artist1",
         "mint_address": "sample_mint_1",
         "image_txid": "sample_tx_1",
-        "image_url": "https://via.placeholder.com/300x200/ff6600/ffffff?text=Sunset",
+        "image_url": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2ZmNjYwMCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LXNpemU9IjE4IiBmaWxsPSIjZmZmIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+U3Vuc2V0PC90ZXh0Pjwvc3ZnPg==",
         "metadata_txid": "sample_meta_1",
         "price": 0.5,
         "for_sale": True,
@@ -115,7 +115,7 @@ sample_pins = [
         "owner": "artist2",
         "mint_address": "sample_mint_2",
         "image_txid": "sample_tx_2",
-        "image_url": "https://via.placeholder.com/300x200/339933/ffffff?text=Mountain",
+        "image_url": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iIzMzOTkzMyIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LXNpemU9IjE4IiBmaWxsPSIjZmZmIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+TW91bnRhaW48L3RleHQ+PC9zdmc+",
         "metadata_txid": "sample_meta_2",
         "price": None,
         "for_sale": False,
@@ -182,15 +182,7 @@ class StatusCheckCreate(BaseModel):
 # Helper functions
 def convert_image_to_base64(image_data: bytes) -> str:
     """Convert image bytes to base64 string"""
-    try:
-        # Limit image size to prevent issues
-        if len(image_data) > 5 * 1024 * 1024:  # 5MB limit
-            raise ValueError("Image too large")
-        return base64.b64encode(image_data).decode('utf-8')
-    except Exception as e:
-        print(f"Error converting image to base64: {e}")
-        # Return a simple fallback image
-        return "PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2ZmNjYwMCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LXNpemU9IjE4IiBmaWxsPSIjZmZmIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+RXJyb3I8L3RleHQ+PC9zdmc+"
+    return base64.b64encode(image_data).decode('utf-8')
 
 async def upload_to_irys(data, content_type="application/octet-stream"):
     """
@@ -232,22 +224,16 @@ async def create_pin(
         # Read image data
         image_data = await image.read()
         
-        # Create pin with uploaded image
-        pin_id = len(sample_pins) + 1
-        
-        # Convert uploaded image to base64
-        image_base64 = convert_image_to_base64(image_data)
-        image_url = f"data:{image.content_type};base64,{image_base64}"
-        
+        # Create a simple mock pin
         new_pin = {
-            "id": str(pin_id),
+            "id": str(len(sample_pins) + 1),
             "title": title,
             "description": description,
             "owner": owner,
-            "mint_address": f"mock_mint_{pin_id}",
-            "image_txid": f"mock_tx_{pin_id}",
-            "image_url": image_url,
-            "metadata_txid": f"mock_meta_{pin_id}",
+            "mint_address": f"mock_mint_{len(sample_pins) + 1}",
+            "image_txid": f"mock_tx_{len(sample_pins) + 1}",
+            "image_url": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iIzAwNjZmZiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LXNpemU9IjE4IiBmaWxsPSIjZmZmIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+TmV3IFBpbjwvdGV4dD48L3N2Zz4=",
+            "metadata_txid": f"mock_meta_{len(sample_pins) + 1}",
             "price": price if for_sale else None,
             "for_sale": for_sale,
             "likes": 0,
@@ -288,7 +274,7 @@ async def get_comments(pin_id: str):
 async def check_like_status(pin_id: str, user: str):
     try:
         # Return false for now (not liked)
-        return {"has_liked": False}
+        return {"liked": False}
     except Exception as e:
         logging.error(f"Error checking like status: {e}")
         raise HTTPException(status_code=500, detail="Failed to check like status")
@@ -357,4 +343,4 @@ app.include_router(api_router)
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    uvicorn.run(app, host="0.0.0.0", port=8001) 
