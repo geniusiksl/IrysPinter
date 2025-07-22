@@ -9,26 +9,23 @@ import toast from "react-hot-toast";
 const BACKEND_URL = "http://localhost:8001";
 const API = `${BACKEND_URL}/api`;
 
-// Mock wallet object for demo
-const mockWallet = {
-  connected: true,
-  publicKey: { toString: () => "A1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q7R8S9T0U1V2W3X4Y5Z" }
-};
-
 const PinterestApp = () => {
   const [pins, setPins] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedPin, setSelectedPin] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [walletAddress, setWalletAddress] = useState("");
 
   useEffect(() => {
     fetchPins();
+    if (window.solana && window.solana.isPhantom && window.solana.isConnected) {
+      setWalletAddress(window.solana.publicKey?.toString() || "");
+    }
   }, []);
 
   const fetchPins = async () => {
     try {
       const response = await axios.get(`${API}/pins`);
-
       setPins(response.data);
       setLoading(false);
     } catch (error) {
@@ -59,6 +56,20 @@ const PinterestApp = () => {
     setSelectedPin(updatedPin);
   };
 
+  const connectPhantom = async () => {
+    if (window.solana && window.solana.isPhantom) {
+      try {
+        const resp = await window.solana.connect();
+        setWalletAddress(resp.publicKey.toString());
+        toast.success("Phantom wallet connected!");
+      } catch (err) {
+        toast.error("User rejected the request");
+      }
+    } else {
+      toast.error("Please install Phantom Wallet!");
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
@@ -71,9 +82,10 @@ const PinterestApp = () => {
     <div className="min-h-screen bg-white">
       <Header 
         onCreateClick={() => setShowCreateModal(true)}
-        isWalletConnected={true}
+        isWalletConnected={!!walletAddress}
+        onConnectWallet={connectPhantom}
+        walletAddress={walletAddress}
       />
-      
       <div className="py-6">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">
@@ -84,33 +96,30 @@ const PinterestApp = () => {
           </p>
           <div className="inline-flex items-center bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-medium">
             <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-            Connected to Solana Mainnet
+            {walletAddress ? `Wallet: ${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}` : "Wallet not connected"}
           </div>
         </div>
       </div>
-
       <PinGrid 
         pins={pins} 
         onPinClick={handlePinClick}
-        currentWallet={mockWallet.publicKey?.toString()}
+        currentWallet={walletAddress}
       />
-
       {showCreateModal && (
         <CreatePinModal
           onClose={() => setShowCreateModal(false)}
           onPinCreated={handlePinCreated}
-          wallet={mockWallet}
+          walletAddress={walletAddress}
         />
       )}
-
       {selectedPin && (
         <PinModal
           pin={selectedPin}
           onClose={() => setSelectedPin(null)}
           onPurchase={handlePinPurchased}
           onPinUpdated={handlePinUpdated}
-          wallet={mockWallet}
-          currentWallet={mockWallet.publicKey?.toString()}
+          walletAddress={walletAddress}
+          currentWallet={walletAddress}
         />
       )}
     </div>

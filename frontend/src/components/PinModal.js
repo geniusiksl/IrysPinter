@@ -12,6 +12,11 @@ const PinModal = ({ pin, onClose, onPurchase, onPinUpdated, wallet, currentWalle
   const [hasLiked, setHasLiked] = useState(false);
   const [loading, setLoading] = useState(false);
   const [commentLoading, setCommentLoading] = useState(false);
+  // Добавить состояния для txid и solana_txid
+  const [likeTxid, setLikeTxid] = useState("");
+  const [likeSolanaTxid, setLikeSolanaTxid] = useState("");
+  const [commentTxid, setCommentTxid] = useState("");
+  const [commentSolanaTxid, setCommentSolanaTxid] = useState("");
 
   const isOwner = pinData.owner === currentWallet;
   const canBuy = pinData.for_sale && !isOwner && wallet.connected;
@@ -48,22 +53,25 @@ const PinModal = ({ pin, onClose, onPurchase, onPinUpdated, wallet, currentWalle
       toast.error("Please connect your wallet");
       return;
     }
-
+    if (!likeTxid) {
+      toast.error("Please provide Irys txid for like");
+      return;
+    }
     try {
       setLoading(true);
       const response = await axios.post(`${API}/pins/${pinData.id}/like`, {
-        user: wallet.publicKey.toString()
+        user: wallet.publicKey.toString(),
+        txid: likeTxid,
+        solana_txid: likeSolanaTxid || undefined
       });
-      
-      // Update like status and count
-      setHasLiked(!hasLiked);
+      setHasLiked(true);
       const updatedPin = {
         ...pinData,
         likes: response.data.likes || (pinData.likes || 0) + 1
       };
       setPinData(updatedPin);
       onPinUpdated(updatedPin);
-      toast.success(hasLiked ? "Unliked!" : "Liked!");
+      toast.success("Liked!");
     } catch (error) {
       console.error("Error liking pin:", error);
       toast.error("Failed to like pin");
@@ -74,24 +82,27 @@ const PinModal = ({ pin, onClose, onPurchase, onPinUpdated, wallet, currentWalle
 
   const handleComment = async (e) => {
     e.preventDefault();
-    
     if (!wallet.connected) {
       toast.error("Please connect your wallet");
       return;
     }
-
     if (!newComment.trim()) return;
-
+    if (!commentTxid) {
+      toast.error("Please provide Irys txid for comment");
+      return;
+    }
     try {
       setCommentLoading(true);
       const response = await axios.post(`${API}/pins/${pinData.id}/comment`, {
         user: wallet.publicKey.toString(),
-        content: newComment.trim()
+        content: newComment.trim(),
+        txid: commentTxid,
+        solana_txid: commentSolanaTxid || undefined
       });
-      
       setComments([response.data, ...comments]);
       setNewComment("");
-      // Update comment count
+      setCommentTxid("");
+      setCommentSolanaTxid("");
       const updatedPin = {
         ...pinData,
         comments: (pinData.comments || 0) + 1
@@ -222,6 +233,23 @@ const PinModal = ({ pin, onClose, onPurchase, onPinUpdated, wallet, currentWalle
 
             {/* Actions */}
             <div className="flex items-center space-x-4 mb-6 pb-6 border-b">
+              {/* Like section */}
+              <div className="mb-2">
+                <input
+                  type="text"
+                  value={likeTxid}
+                  onChange={e => setLikeTxid(e.target.value)}
+                  placeholder="Irys txid for like"
+                  className="border px-2 py-1 rounded mr-2 text-xs"
+                />
+                <input
+                  type="text"
+                  value={likeSolanaTxid}
+                  onChange={e => setLikeSolanaTxid(e.target.value)}
+                  placeholder="Solana txid (optional)"
+                  className="border px-2 py-1 rounded text-xs"
+                />
+              </div>
               <button
                 onClick={handleLike}
                 disabled={loading}
@@ -246,6 +274,23 @@ const PinModal = ({ pin, onClose, onPurchase, onPinUpdated, wallet, currentWalle
               {/* Add Comment */}
               {wallet.connected && (
                 <form onSubmit={handleComment} className="space-y-3">
+                  {/* Comment section */}
+                  <div className="mb-2">
+                    <input
+                      type="text"
+                      value={commentTxid}
+                      onChange={e => setCommentTxid(e.target.value)}
+                      placeholder="Irys txid for comment"
+                      className="border px-2 py-1 rounded mr-2 text-xs"
+                    />
+                    <input
+                      type="text"
+                      value={commentSolanaTxid}
+                      onChange={e => setCommentSolanaTxid(e.target.value)}
+                      placeholder="Solana txid (optional)"
+                      className="border px-2 py-1 rounded text-xs"
+                    />
+                  </div>
                   <textarea
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}

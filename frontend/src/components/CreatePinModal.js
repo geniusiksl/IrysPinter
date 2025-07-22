@@ -1,11 +1,19 @@
 import React, { useState, useRef } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
+import { Connection, PublicKey, Transaction, SystemProgram, Keypair, TransactionInstruction } from '@solana/web3.js';
+import { createMint, getOrCreateAssociatedTokenAccount, mintTo, setAuthority, AuthorityType } from '@solana/spl-token';
+import Irys from '@irys/sdk';
 
 const BACKEND_URL = "http://localhost:8001";
 const API = `${BACKEND_URL}/api`;
 
-const CreatePinModal = ({ onClose, onPinCreated, wallet }) => {
+const network = 'devnet';
+const endpoint = 'https://api.devnet.solana.com';
+
+const TOKEN_METADATA_PROGRAM_ID = new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s");
+
+const CreatePinModal = ({ onClose, onPinCreated, walletAddress }) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
@@ -14,6 +22,13 @@ const CreatePinModal = ({ onClose, onPinCreated, wallet }) => {
   const [previewUrl, setPreviewUrl] = useState("");
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
+  const [imageTxid, setImageTxid] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [metadataTxid, setMetadataTxid] = useState("");
+  const [mintAddress, setMintAddress] = useState("");
+  const [mintTxid, setMintTxid] = useState("");
+  const [irysUploading, setIrysUploading] = useState(false);
+  const [minting, setMinting] = useState(false);
 
   const handleImageSelect = (e) => {
     const file = e.target.files[0];
@@ -27,39 +42,220 @@ const CreatePinModal = ({ onClose, onPinCreated, wallet }) => {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
+  // Irys upload handler
+  const handleIrysUpload = async () => {
     if (!image) {
       toast.error("Please select an image");
       return;
     }
-    
-    if (!wallet.connected) {
+    if (!walletAddress || !window.solana) {
       toast.error("Please connect your wallet");
       return;
     }
-
-    setUploading(true);
-    
+    setIrysUploading(true);
     try {
-      // Create FormData for file upload
+      const irys = new Irys({
+        url: 'https://devnet.irys.xyz',
+        token: 'solana',
+        wallet: {
+          publicKey: new PublicKey(walletAddress),
+          signMessage: window.solana.signMessage
+        },
+      });
+      const fileBuffer = await image.arrayBuffer();
+      const tx = await irys.upload(Buffer.from(fileBuffer), {
+        tags: [{ name: "Content-Type", value: image.type }],
+      });
+      setImageTxid(tx.id);
+      setImageUrl(`https://gateway.irys.xyz/${tx.id}`);
+      toast.success("Image uploaded to Irys!");
+    } catch (e) {
+      toast.error("Irys upload failed");
+      console.error(e);
+    } finally {
+      setIrysUploading(false);
+    }
+  };
+
+  // Metadata upload to Irys
+  const handleMetadataUpload = async () => {
+    if (!imageUrl) {
+      toast.error("Upload image to Irys first");
+      return;
+    }
+    if (!walletAddress || !window.solana) {
+      toast.error("Please connect your wallet");
+      return;
+    }
+    setIrysUploading(true);
+    try {
+      const irys = new Irys({
+        url: 'https://devnet.irys.xyz',
+        token: 'solana',
+        wallet: {
+          publicKey: new PublicKey(walletAddress),
+          signMessage: window.solana.signMessage
+        },
+      });
+      const metadata = {
+        name: title,
+        symbol: "PIN",
+        description,
+        image: imageUrl,
+        attributes: [],
+        properties: { files: [{ uri: imageUrl, type: image?.type }] },
+      };
+      const tx = await irys.upload(JSON.stringify(metadata), {
+        tags: [{ name: "Content-Type", value: "application/json" }],
+      });
+      setMetadataTxid(tx.id);
+      toast.success("Metadata uploaded to Irys!");
+    } catch (e) {
+      toast.error("Metadata upload failed");
+      console.error(e);
+    } finally {
+      setIrysUploading(false);
+    }
+  };
+
+  // Mint NFT via web3.js + spl-token + Token Metadata Program
+  const handleMintNFT = async () => {
+    if (!metadataTxid) {
+      toast.error("Upload metadata to Irys first");
+      return;
+    }
+    if (!walletAddress || !window.solana) {
+      toast.error("Please connect your wallet");
+      return;
+    }
+    setMinting(true);
+    try {
+      const connection = new Connection(endpoint);
+      const provider = window.solana;
+      await provider.connect();
+      const fromPubkey = new PublicKey(walletAddress);
+      const mint = Keypair.generate();
+      const lamports = await connection.getMinimumBalanceForRentExemption(82);
+      const transaction = new Transaction();
+      transaction.add(
+        SystemProgram.createAccount({
+          fromPubkey,
+          newAccountPubkey: mint.publicKey,
+          space: 82,
+          lamports,
+          programId: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA')
+        })
+      );
+      transaction.add(
+        createMint({
+          decimals: 0,
+          mintAuthority: fromPubkey,
+          freezeAuthority: fromPubkey,
+          programId: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA')
+        }, mint.publicKey)
+      );
+      const ata = await getOrCreateAssociatedTokenAccount(
+        connection,
+        mint,
+        fromPubkey,
+        fromPubkey
+      );
+      transaction.add(
+        mintTo({
+          mint: mint.publicKey,
+          destination: ata.address,
+          authority: fromPubkey,
+          amount: 1n
+        })
+      );
+      transaction.add(
+        setAuthority({
+          account: mint.publicKey,
+          currentAuthority: fromPubkey,
+          authorityType: AuthorityType.MintTokens,
+          newAuthority: null
+        })
+      );
+      // Token Metadata Program: create metadata account
+      const [metadataPDA] = await PublicKey.findProgramAddress(
+        [
+          Buffer.from("metadata"),
+          TOKEN_METADATA_PROGRAM_ID.toBuffer(),
+          mint.publicKey.toBuffer()
+        ],
+        TOKEN_METADATA_PROGRAM_ID
+      );
+      // Минимальная сериализация для create_metadata (инструкция 0)
+      const data = Buffer.concat([
+        Buffer.from([0]), // create_metadata instruction
+        Buffer.from(title.padEnd(32)),
+        Buffer.from("PIN".padEnd(10)),
+        Buffer.from(`https://gateway.irys.xyz/${metadataTxid}`.padEnd(200)),
+        Buffer.alloc(2), // sellerFeeBasisPoints (0)
+        Buffer.from([0]), // no creators
+        Buffer.from([0]), // no collection
+        Buffer.from([0])  // no uses
+      ]);
+      const keys = [
+        { pubkey: metadataPDA, isSigner: false, isWritable: true },
+        { pubkey: mint.publicKey, isSigner: false, isWritable: false },
+        { pubkey: fromPubkey, isSigner: true, isWritable: false },
+        { pubkey: fromPubkey, isSigner: true, isWritable: false },
+        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+        { pubkey: new PublicKey('SysvarRent111111111111111111111111111111111'), isSigner: false, isWritable: false }
+      ];
+      const createMetadataIx = new TransactionInstruction({
+        keys,
+        programId: TOKEN_METADATA_PROGRAM_ID,
+        data
+      });
+      transaction.add(createMetadataIx);
+
+      transaction.partialSign(mint);
+      const signed = await provider.signTransaction(transaction);
+      const txid = await connection.sendRawTransaction(signed.serialize());
+      await connection.confirmTransaction(txid);
+      setMintAddress(mint.publicKey.toString());
+      setMintTxid(txid);
+      toast.success("NFT minted!");
+    } catch (e) {
+      toast.error("Minting failed");
+      console.error(e);
+    } finally {
+      setMinting(false);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!imageTxid || !imageUrl || !metadataTxid || !mintAddress || !mintTxid) {
+      toast.error("Please upload and mint all data");
+      return;
+    }
+    if (!walletAddress) {
+      toast.error("Please connect your wallet");
+      return;
+    }
+    setUploading(true);
+    try {
       const formData = new FormData();
-      formData.append('image', image);
       formData.append('title', title);
       formData.append('description', description);
-      formData.append('owner', wallet.publicKey.toString());
+      formData.append('owner', walletAddress);
       formData.append('for_sale', forSale);
       if (forSale && price) {
         formData.append('price', price);
       }
-
+      formData.append('image_txid', imageTxid);
+      formData.append('image_url', imageUrl);
+      formData.append('metadata_txid', metadataTxid);
+      formData.append('mint_address', mintAddress);
+      formData.append('mint_txid', mintTxid);
       const response = await axios.post(`${API}/pins`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
-
       onPinCreated(response.data);
     } catch (error) {
       console.error("Error creating pin:", error);
@@ -193,6 +389,79 @@ const CreatePinModal = ({ onClose, onPinCreated, wallet }) => {
                 />
               </div>
             )}
+
+            {/* Irys and Solana Txids */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <div className="mb-2">
+                <input
+                  type="text"
+                  value={imageTxid}
+                  onChange={e => setImageTxid(e.target.value)}
+                  placeholder="Irys txid for image"
+                  className="border px-2 py-1 rounded mr-2 text-xs"
+                />
+                <input
+                  type="text"
+                  value={imageUrl}
+                  onChange={e => setImageUrl(e.target.value)}
+                  placeholder="Irys gateway URL"
+                  className="border px-2 py-1 rounded text-xs"
+                />
+              </div>
+              <div className="mb-2">
+                <input
+                  type="text"
+                  value={metadataTxid}
+                  onChange={e => setMetadataTxid(e.target.value)}
+                  placeholder="Irys txid for metadata"
+                  className="border px-2 py-1 rounded mr-2 text-xs"
+                />
+              </div>
+              <div className="mb-2">
+                <input
+                  type="text"
+                  value={mintAddress}
+                  onChange={e => setMintAddress(e.target.value)}
+                  placeholder="NFT mint address"
+                  className="border px-2 py-1 rounded mr-2 text-xs"
+                />
+                <input
+                  type="text"
+                  value={mintTxid}
+                  onChange={e => setMintTxid(e.target.value)}
+                  placeholder="Solana mint txid"
+                  className="border px-2 py-1 rounded text-xs"
+                />
+              </div>
+            </div>
+
+            {/* Mint and Upload Buttons */}
+            <div className="flex flex-col md:flex-row gap-2 pt-2">
+              <button
+                type="button"
+                onClick={handleIrysUpload}
+                disabled={irysUploading || !image}
+                className="w-full md:w-auto bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white py-2 px-4 rounded-lg font-semibold transition-colors"
+              >
+                {irysUploading ? "Uploading Image..." : "Upload Image to Irys"}
+              </button>
+              <button
+                type="button"
+                onClick={handleMetadataUpload}
+                disabled={irysUploading || !imageUrl}
+                className="w-full md:w-auto bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white py-2 px-4 rounded-lg font-semibold transition-colors"
+              >
+                {irysUploading ? "Uploading Metadata..." : "Upload Metadata to Irys"}
+              </button>
+              <button
+                type="button"
+                onClick={handleMintNFT}
+                disabled={minting || !metadataTxid}
+                className="w-full md:w-auto bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white py-2 px-4 rounded-lg font-semibold transition-colors"
+              >
+                {minting ? "Minting..." : "Mint NFT"}
+              </button>
+            </div>
 
             {/* Submit Button */}
             <div className="pt-4">
