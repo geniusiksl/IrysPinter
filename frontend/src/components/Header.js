@@ -1,6 +1,14 @@
 import React from "react";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 
+const Header = ({ onCreateClick, onRoyaltyClick }) => {
+  const { publicKey, connected } = useWallet();
+
+<<<<<<< HEAD
 const Header = ({ onCreateClick, isWalletConnected, onConnectWallet, walletAddress }) => {
+=======
+>>>>>>> 379c2ed1cf58ccf80531774e225654958c2ba93e
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-gray-200 px-4 py-3">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -15,7 +23,11 @@ const Header = ({ onCreateClick, isWalletConnected, onConnectWallet, walletAddre
           </div>
         </div>
         <div className="flex items-center space-x-4">
+<<<<<<< HEAD
           {isWalletConnected ? (
+=======
+          {connected && (
+>>>>>>> 379c2ed1cf58ccf80531774e225654958c2ba93e
             <>
               <button
                 onClick={onCreateClick}
@@ -24,6 +36,7 @@ const Header = ({ onCreateClick, isWalletConnected, onConnectWallet, walletAddre
                 <span>+</span>
                 <span>Create Pin</span>
               </button>
+<<<<<<< HEAD
               <span className="text-gray-700 font-mono text-sm bg-gray-100 px-3 py-1 rounded-full">
                 {walletAddress.slice(0, 4)}...{walletAddress.slice(-4)}
               </span>
@@ -36,6 +49,30 @@ const Header = ({ onCreateClick, isWalletConnected, onConnectWallet, walletAddre
               Connect Phantom
             </button>
           )}
+=======
+              
+              <button
+                onClick={onRoyaltyClick}
+                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-full font-semibold transition-colors flex items-center space-x-2"
+              >
+                <span>💰</span>
+                <span>Royalties</span>
+              </button>
+            </>
+          )}
+          
+          {/* Solana Wallet Connection */}
+          <WalletMultiButton className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-full font-semibold transition-colors" />
+          
+          {connected && publicKey && (
+            <div className="flex items-center space-x-2 bg-gray-100 px-4 py-2 rounded-full">
+              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+              <span className="text-gray-700 font-medium text-sm">
+                {publicKey.toString().slice(0, 4)}...{publicKey.toString().slice(-4)} (Connected)
+              </span>
+            </div>
+          )}
+>>>>>>> 379c2ed1cf58ccf80531774e225654958c2ba93e
         </div>
       </div>
     </header>

@@ -2,12 +2,22 @@
 
 A decentralized Pinterest-like platform built on Solana blockchain with Irys for decentralized storage.
 
+## 🆕 New Features
+
+- ✅ **Real Solana Integration**: Connect with Phantom, Solflare, and other Solana wallets
+- ✅ **Irys Decentralized Storage**: Upload images and metadata to Irys network
+- ✅ **NFT Minting**: Create and mint NFTs on Solana blockchain
+- ✅ **SOL Transactions**: Buy and sell pins with real SOL
+- ✅ **Blockchain Verification**: Verify transactions and NFT ownership
+
 ## 🚀 Quick Start
 
 ### Prerequisites
 - Python 3.8+
 - Node.js 16+
 - MongoDB (local or cloud)
+- Solana wallet (Phantom, Solflare, etc.)
+- SOL for transactions (use devnet for testing)
 
 ### 1. Backend Setup
 
@@ -17,8 +27,11 @@ cd backend
 pip install -r requirements.txt
 
 # Set up environment variables (create .env file)
+# See SETUP_SOLANA_IRYS.md for detailed configuration
 MONGO_URL=mongodb://localhost:27017
 DB_NAME=solpinter
+SOLANA_NETWORK=devnet
+IRYS_NETWORK=devnet
 
 # Start the backend server
 python ../start_backend.py
@@ -57,12 +70,15 @@ The app will be available at:
 - Solana NFT minting (mock implementation)
 
 ### Key Features
-- ✅ Create NFT pins with images
-- ✅ Store images on Irys (decentralized)
-- ✅ Mint NFTs on Solana
-- ✅ Buy/sell pins with SOL
-- ✅ Like and comment system
-- ✅ Pinterest-like UI/UX
+- ✅ **Real Solana Wallet Integration**: Connect with Phantom, Solflare, Backpack
+- ✅ **Irys Decentralized Storage**: Upload images and metadata to Irys network
+- ✅ **NFT Minting**: Create and mint NFTs on Solana blockchain
+- ✅ **SOL Transactions**: Buy and sell pins with real SOL
+- ✅ **Automatic Royalties**: 1% platform fee on all sales
+- ✅ **Royalty Management**: Track and withdraw accumulated royalties
+- ✅ **Blockchain Verification**: Verify transactions and NFT ownership
+- ✅ **Like and Comment System**: Social features for pins
+- ✅ **Pinterest-like UI/UX**: Beautiful, responsive interface
 
 ## 🔧 Configuration
 
@@ -81,28 +97,46 @@ REACT_APP_BACKEND_URL=http://localhost:8000
 
 ## 🧪 Testing
 
-### Test API Endpoints
+### Test Integration
 ```bash
-# Test image loading
-python test_images.py
+# Run comprehensive integration tests
+python test_solana_irys_integration.py
 
-# Test pin creation
+# Test API endpoints
 python test_create_pin.py
 ```
 
 ### Manual Testing
 1. Open http://localhost:3000
-2. Click "Create Pin" to upload an image
-3. View pins in the grid
-4. Click on a pin to see details
-5. Test purchase functionality
+2. Connect your Solana wallet (Phantom, Solflare, etc.)
+3. Click "Create Pin" to upload an image to Irys
+4. View pins in the grid
+5. Click on a pin to see details and purchase options
+6. Test SOL transactions for buying/selling pins
+
+
 
 ## 🐛 Troubleshooting
 
 ### CORS Errors
-- Ensure backend is running on http://localhost:8000
+- Ensure backend is running on http://localhost:8001
 - Check that CORS middleware is enabled in backend
 - Verify frontend is using correct backend URL
+
+### Solana Wallet Issues
+- Ensure Phantom wallet is installed and connected
+- Check that you're on the correct network (Devnet/Mainnet)
+- Verify wallet has sufficient SOL for transactions
+
+### Irys Upload Issues
+- Check Irys account balance
+- Verify network configuration (devnet/mainnet)
+- Ensure wallet is connected before uploading
+
+### NFT Minting Issues
+- Verify Solana RPC connection
+- Check private key format in .env
+- Ensure sufficient SOL for transaction fees
 
 ### Image Loading Issues
 - Check that `image_url` field is populated in database
@@ -116,12 +150,23 @@ python test_create_pin.py
 
 ## 📝 API Endpoints
 
+### Pin Management
 - `GET /api/pins` - Get all pins
 - `POST /api/pins` - Create new pin
 - `GET /api/pins/{id}` - Get specific pin
 - `POST /api/pins/{id}/like` - Like/unlike pin
 - `POST /api/pins/{id}/comment` - Add comment
-- `POST /api/pins/{id}/purchase` - Purchase pin
+- `POST /api/pins/{id}/purchase` - Purchase pin with SOL
+
+### Solana Integration
+- `GET /api/solana/balance/{public_key}` - Get SOL balance
+- `POST /api/solana/transfer` - Transfer SOL between accounts
+- `GET /api/solana/transaction/{signature}` - Verify transaction
+
+### Royalty Management
+- `GET /api/royalty/balance` - Get royalty wallet balance
+- `POST /api/royalty/calculate` - Calculate royalty for sale amount
+- `POST /api/royalty/withdraw` - Withdraw accumulated royalties
 
 ## 🤝 Contributing
 

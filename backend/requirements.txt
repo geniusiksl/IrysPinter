@@ -25,3 +25,10 @@ jq>=1.6.0
 typer>=0.9.0
 solana>=0.30.0
 base58>=2.1.1
+# Solana and Irys dependencies
+solana>=0.30.0
+solders>=0.18.0
+anchorpy>=0.18.0
+# Irys SDK for Python (if available) or use requests for Irys API
+aiofiles>=23.2.1
+Pillow>=10.0.0

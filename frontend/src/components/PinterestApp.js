@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
+import { useWallet } from "@solana/wallet-adapter-react";
 import Header from "./Header";
 import PinGrid from "./PinGrid";
 import CreatePinModal from "./CreatePinModal";
 import PinModal from "./PinModal";
+import RoyaltyInfo from "./RoyaltyInfo";
 import axios from "axios";
 import toast from "react-hot-toast";
 
@@ -10,11 +12,16 @@ const BACKEND_URL = "http://localhost:8001";
 const API = `${BACKEND_URL}/api`;
 
 const PinterestApp = () => {
+  const { publicKey, connected } = useWallet();
   const [pins, setPins] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedPin, setSelectedPin] = useState(null);
   const [loading, setLoading] = useState(true);
+<<<<<<< HEAD
   const [walletAddress, setWalletAddress] = useState("");
+=======
+  const [showRoyaltyInfo, setShowRoyaltyInfo] = useState(false);
+>>>>>>> 379c2ed1cf58ccf80531774e225654958c2ba93e
 
   useEffect(() => {
     fetchPins();
@@ -82,9 +89,13 @@ const PinterestApp = () => {
     <div className="min-h-screen bg-white">
       <Header 
         onCreateClick={() => setShowCreateModal(true)}
+<<<<<<< HEAD
         isWalletConnected={!!walletAddress}
         onConnectWallet={connectPhantom}
         walletAddress={walletAddress}
+=======
+        onRoyaltyClick={() => setShowRoyaltyInfo(true)}
+>>>>>>> 379c2ed1cf58ccf80531774e225654958c2ba93e
       />
       <div className="py-6">
         <div className="text-center mb-8">
@@ -103,13 +114,21 @@ const PinterestApp = () => {
       <PinGrid 
         pins={pins} 
         onPinClick={handlePinClick}
+<<<<<<< HEAD
         currentWallet={walletAddress}
+=======
+        currentWallet={publicKey?.toString()}
+>>>>>>> 379c2ed1cf58ccf80531774e225654958c2ba93e
       />
       {showCreateModal && (
         <CreatePinModal
           onClose={() => setShowCreateModal(false)}
           onPinCreated={handlePinCreated}
+<<<<<<< HEAD
           walletAddress={walletAddress}
+=======
+          wallet={{ publicKey, connected }}
+>>>>>>> 379c2ed1cf58ccf80531774e225654958c2ba93e
         />
       )}
       {selectedPin && (
@@ -118,9 +137,33 @@ const PinterestApp = () => {
           onClose={() => setSelectedPin(null)}
           onPurchase={handlePinPurchased}
           onPinUpdated={handlePinUpdated}
+<<<<<<< HEAD
           walletAddress={walletAddress}
           currentWallet={walletAddress}
+=======
+          wallet={{ publicKey, connected }}
+          currentWallet={publicKey?.toString()}
+>>>>>>> 379c2ed1cf58ccf80531774e225654958c2ba93e
         />
+      )}
+
+      {showRoyaltyInfo && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Royalty Management</h2>
+                <button
+                  onClick={() => setShowRoyaltyInfo(false)}
+                  className="text-gray-400 hover:text-gray-600 text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+              <RoyaltyInfo />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

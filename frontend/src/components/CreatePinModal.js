@@ -1,4 +1,6 @@
 import React, { useState, useRef } from "react";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { useIrys } from "../hooks/useIrys";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { Connection, PublicKey, Transaction, SystemProgram, Keypair, TransactionInstruction } from '@solana/web3.js';
@@ -8,12 +10,18 @@ import Irys from '@irys/sdk';
 const BACKEND_URL = "http://localhost:8001";
 const API = `${BACKEND_URL}/api`;
 
+<<<<<<< HEAD
 const network = 'devnet';
 const endpoint = 'https://api.devnet.solana.com';
 
 const TOKEN_METADATA_PROGRAM_ID = new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s");
 
 const CreatePinModal = ({ onClose, onPinCreated, walletAddress }) => {
+=======
+const CreatePinModal = ({ onClose, onPinCreated }) => {
+  const { publicKey, connected } = useWallet();
+  const { uploadImageWithMetadata, isUploading, uploadProgress } = useIrys();
+>>>>>>> 379c2ed1cf58ccf80531774e225654958c2ba93e
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
@@ -48,7 +56,12 @@ const CreatePinModal = ({ onClose, onPinCreated, walletAddress }) => {
       toast.error("Please select an image");
       return;
     }
+<<<<<<< HEAD
     if (!walletAddress || !window.solana) {
+=======
+    
+    if (!connected) {
+>>>>>>> 379c2ed1cf58ccf80531774e225654958c2ba93e
       toast.error("Please connect your wallet");
       return;
     }
@@ -238,6 +251,7 @@ const CreatePinModal = ({ onClose, onPinCreated, walletAddress }) => {
     }
     setUploading(true);
     try {
+<<<<<<< HEAD
       const formData = new FormData();
       formData.append('title', title);
       formData.append('description', description);
@@ -256,7 +270,35 @@ const CreatePinModal = ({ onClose, onPinCreated, walletAddress }) => {
           'Content-Type': 'multipart/form-data',
         },
       });
+=======
+      // Upload image and metadata to Irys
+      const uploadResult = await uploadImageWithMetadata(
+        image,
+        title,
+        description,
+        forSale ? parseFloat(price) : null
+      );
+
+      // Create pin data
+      const pinData = {
+        title,
+        description,
+        owner: publicKey.toString(),
+        image_txid: uploadResult.image.transactionId,
+        image_url: uploadResult.image.url,
+        metadata_txid: uploadResult.metadata.transactionId,
+        metadata_url: uploadResult.metadata.url,
+        price: forSale ? parseFloat(price) : null,
+        for_sale: forSale,
+        mint_address: null, // Will be set by backend
+      };
+
+      // Send to backend for NFT minting
+      const response = await axios.post(`${API}/pins`, pinData);
+
+>>>>>>> 379c2ed1cf58ccf80531774e225654958c2ba93e
       onPinCreated(response.data);
+      toast.success("Pin created successfully! NFT minted on Solana.");
     } catch (error) {
       console.error("Error creating pin:", error);
       toast.error(error.response?.data?.detail || "Failed to create pin");
@@ -390,6 +432,7 @@ const CreatePinModal = ({ onClose, onPinCreated, walletAddress }) => {
               </div>
             )}
 
+<<<<<<< HEAD
             {/* Irys and Solana Txids */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
               <div className="mb-2">
@@ -462,6 +505,22 @@ const CreatePinModal = ({ onClose, onPinCreated, walletAddress }) => {
                 {minting ? "Minting..." : "Mint NFT"}
               </button>
             </div>
+=======
+            {/* Upload Progress */}
+            {(isUploading || uploading) && (
+              <div className="pt-4">
+                <div className="bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${uploadProgress}%` }}
+                  ></div>
+                </div>
+                <p className="text-sm text-gray-600 mt-2">
+                  {isUploading ? "Uploading to Irys..." : "Processing..."}
+                </p>
+              </div>
+            )}
+>>>>>>> 379c2ed1cf58ccf80531774e225654958c2ba93e
 
             {/* Submit Button */}
             <div className="pt-4">
