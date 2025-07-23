@@ -1,61 +1,33 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { Connection, PublicKey } from '@solana/web3.js';
-import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
+import React, { useMemo } from 'react';
+import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
 import {
   PhantomWalletAdapter,
   SolflareWalletAdapter,
-  BackpackWalletAdapter,
+  // BackpackWalletAdapter, // Удалено
 } from '@solana/wallet-adapter-wallets';
-import {
-  WalletProvider,
-  useWallet,
-  WalletModalProvider,
-  WalletMultiButton,
-} from '@solana/wallet-adapter-react-ui';
-import { clusterApiUrl } from '@solana/web3.js';
+import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
+import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
 
-// Import wallet adapter CSS
-require('@solana/wallet-adapter-react-ui/styles.css');
+const network = WalletAdapterNetwork.Devnet;
+const endpoint = 'https://api.devnet.solana.com';
 
-const SolanaWalletContext = createContext();
-
-export const useSolanaWallet = () => {
-  const context = useContext(SolanaWalletContext);
-  if (!context) {
-    throw new Error('useSolanaWallet must be used within a SolanaWalletProvider');
-  }
-  return context;
-};
-
-const SolanaWalletProvider = ({ children }) => {
-  const [network, setNetwork] = useState(WalletAdapterNetwork.Devnet);
-  const [endpoint, setEndpoint] = useState(clusterApiUrl(WalletAdapterNetwork.Devnet));
-
-  const wallets = [
-    new PhantomWalletAdapter(),
-    new SolflareWalletAdapter(),
-    new BackpackWalletAdapter(),
-  ];
-
-  const connection = new Connection(endpoint, 'confirmed');
-
-  const value = {
-    connection,
-    network,
-    setNetwork,
-    endpoint,
-    setEndpoint,
-  };
+export default function SolanaWalletProvider({ children }) {
+  const wallets = useMemo(
+    () => [
+      new PhantomWalletAdapter(),
+      new SolflareWalletAdapter(),
+      // new BackpackWalletAdapter(), // Удалено
+    ],
+    []
+  );
 
   return (
-    <WalletProvider wallets={wallets} autoConnect>
-      <WalletModalProvider>
-        <SolanaWalletContext.Provider value={value}>
+    <ConnectionProvider endpoint={endpoint}>
+      <WalletProvider wallets={wallets} autoConnect>
+        <WalletModalProvider>
           {children}
-        </SolanaWalletContext.Provider>
-      </WalletModalProvider>
-    </WalletProvider>
+        </WalletModalProvider>
+      </WalletProvider>
+    </ConnectionProvider>
   );
-};
-
-export default SolanaWalletProvider; 
+} 

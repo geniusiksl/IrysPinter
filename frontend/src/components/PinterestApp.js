@@ -17,11 +17,8 @@ const PinterestApp = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedPin, setSelectedPin] = useState(null);
   const [loading, setLoading] = useState(true);
-<<<<<<< HEAD
   const [walletAddress, setWalletAddress] = useState("");
-=======
   const [showRoyaltyInfo, setShowRoyaltyInfo] = useState(false);
->>>>>>> 379c2ed1cf58ccf80531774e225654958c2ba93e
 
   useEffect(() => {
     fetchPins();
@@ -89,13 +86,10 @@ const PinterestApp = () => {
     <div className="min-h-screen bg-white">
       <Header 
         onCreateClick={() => setShowCreateModal(true)}
-<<<<<<< HEAD
         isWalletConnected={!!walletAddress}
         onConnectWallet={connectPhantom}
         walletAddress={walletAddress}
-=======
         onRoyaltyClick={() => setShowRoyaltyInfo(true)}
->>>>>>> 379c2ed1cf58ccf80531774e225654958c2ba93e
       />
       <div className="py-6">
         <div className="text-center mb-8">
@@ -114,21 +108,14 @@ const PinterestApp = () => {
       <PinGrid 
         pins={pins} 
         onPinClick={handlePinClick}
-<<<<<<< HEAD
-        currentWallet={walletAddress}
-=======
         currentWallet={publicKey?.toString()}
->>>>>>> 379c2ed1cf58ccf80531774e225654958c2ba93e
       />
       {showCreateModal && (
         <CreatePinModal
           onClose={() => setShowCreateModal(false)}
           onPinCreated={handlePinCreated}
-<<<<<<< HEAD
           walletAddress={walletAddress}
-=======
           wallet={{ publicKey, connected }}
->>>>>>> 379c2ed1cf58ccf80531774e225654958c2ba93e
         />
       )}
       {selectedPin && (
@@ -137,13 +124,9 @@ const PinterestApp = () => {
           onClose={() => setSelectedPin(null)}
           onPurchase={handlePinPurchased}
           onPinUpdated={handlePinUpdated}
-<<<<<<< HEAD
           walletAddress={walletAddress}
-          currentWallet={walletAddress}
-=======
           wallet={{ publicKey, connected }}
           currentWallet={publicKey?.toString()}
->>>>>>> 379c2ed1cf58ccf80531774e225654958c2ba93e
         />
       )}
 
