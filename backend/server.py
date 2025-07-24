@@ -11,11 +11,6 @@ import logging
 import json
 import os
 
-from solders.pubkey import Pubkey
-from solders.keypair import Keypair
-from solana.rpc.api import Client
-# Metaplex imports removed - using frontend minting instead
-
 # Ваш royalty-кошелёк (public key)
 ROYALTY_WALLET = "ВАШ_РОЯЛТИ_ПАБЛИК_КЛЮЧ"
 

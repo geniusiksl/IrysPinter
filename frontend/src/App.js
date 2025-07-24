@@ -2,16 +2,16 @@ import React from "react";
 import "./App.css";
 import { Toaster } from "react-hot-toast";
 import PinterestApp from "./components/PinterestApp";
-import SolanaWalletProvider from "./contexts/SolanaWalletProvider";
+import EthereumWalletProvider from "./contexts/EthereumWalletProvider";
 
 function App() {
   return (
-    <SolanaWalletProvider>
+    <EthereumWalletProvider>
       <div className="App">
         <PinterestApp />
         <Toaster position="bottom-right" />
       </div>
-    </SolanaWalletProvider>
+    </EthereumWalletProvider>
   );
 }
 

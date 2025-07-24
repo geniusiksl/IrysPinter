@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { useWallet } from "@solana/wallet-adapter-react";
+import { useEthereumWallet } from "../contexts/EthereumWalletProvider";
 import { useIrys } from "../hooks/useIrys";
 import axios from "axios";
 import toast from "react-hot-toast";
@@ -7,8 +7,8 @@ import toast from "react-hot-toast";
 const BACKEND_URL = "http://localhost:8001";
 const API = `${BACKEND_URL}/api`;
 
-const CreatePinModal = ({ onClose, onPinCreated }) => {
-  const { publicKey, connected } = useWallet();
+const CreatePinModal = ({ onClose, onPinCreated, walletAddress }) => {
+  const { address, isConnected } = useEthereumWallet();
   const { mintNFT, createNFTMetadata, isUploading, isMinting } = useIrys();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -37,45 +37,40 @@ const CreatePinModal = ({ onClose, onPinCreated }) => {
       toast.error("Please select an image and enter a title");
       return;
     }
-    if (!connected || !publicKey) {
+    if (!isConnected || !address) {
       toast.error("Please connect your wallet");
       return;
     }
-    
     setUploading(true);
     try {
       // 1. Create NFT metadata
       const metadata = createNFTMetadata(
         title,
-        "SOLPIN",
+        "PIN",
         description,
         "", // Will be set after image upload
         [
-          { trait_type: "Platform", value: "SolPinter" },
-          ...(price ? [{ trait_type: "Price", value: `${price} SOL` }] : [])
+          { trait_type: "Platform", value: "IrysPinter" },
+          ...(price ? [{ trait_type: "Price", value: `${price} ETH` }] : [])
         ]
       );
-
-      // 2. Mint NFT on Solana using Metaplex
+      // 2. Mint NFT on Arbitrum/Ethereum
       const nftResult = await mintNFT(metadata, image);
-      
       // 3. Save pin data to backend
       const pinData = {
         title,
         description,
-        owner: publicKey.toString(),
+        owner: address,
         mint_address: nftResult.mintAddress,
         image_url: nftResult.imageUrl,
         metadata_url: nftResult.metadataUrl,
-        price: price ? parseFloat(price) : null,
         for_sale: forSale,
+        price,
         transaction_signature: nftResult.transactionSignature
       };
-
       const response = await axios.post(`${API}/pins`, pinData);
-      
       onPinCreated(response.data);
-      toast.success("NFT minted successfully on Solana!");
+      toast.success("NFT minted successfully on Arbitrum!");
       setUploading(false);
       onClose();
     } catch (error) {
@@ -94,57 +89,32 @@ const CreatePinModal = ({ onClose, onPinCreated }) => {
             <button
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600 text-2xl"
-              disabled={uploading}
             >
               ×
             </button>
           </div>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
+          <form onSubmit={handleSubmit}>
+            <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Image *
               </label>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
-                {previewUrl ? (
-                  <div className="relative">
-                    <img
-                      src={previewUrl}
-                      alt="Preview"
-                      className="max-h-40 mx-auto rounded-lg"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setImage(null);
-                        setPreviewUrl("");
-                      }}
-                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ) : (
-                  <div>
-                    <div className="text-4xl mb-2">📷</div>
-                    <p className="text-gray-600">Click to upload image</p>
-                    <p className="text-xs text-gray-400 mt-1">Max 10MB</p>
-                  </div>
-                )}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageSelect}
-                  className="hidden"
-                />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="mt-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-                >
-                  Choose Image
-                </button>
-              </div>
+              <input
+                type="file"
+                accept="image/*"
+                ref={fileInputRef}
+                onChange={handleImageSelect}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="mt-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Choose Image
+              </button>
+              {previewUrl && (
+                <img src={previewUrl} alt="Preview" className="mt-4 max-h-48 rounded-lg" />
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -177,7 +147,6 @@ const CreatePinModal = ({ onClose, onPinCreated }) => {
                 id="forSale"
                 checked={forSale}
                 onChange={(e) => setForSale(e.target.checked)}
-                className="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500"
               />
               <label htmlFor="forSale" className="text-sm font-medium text-gray-700">
                 List for sale
@@ -186,7 +155,7 @@ const CreatePinModal = ({ onClose, onPinCreated }) => {
             {forSale && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Price (SOL)
+                  Price (ETH)
                 </label>
                 <input
                   type="number"
@@ -195,7 +164,7 @@ const CreatePinModal = ({ onClose, onPinCreated }) => {
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                  placeholder="0.1"
+                  placeholder="0.01"
                 />
               </div>
             )}
@@ -216,7 +185,7 @@ const CreatePinModal = ({ onClose, onPinCreated }) => {
               </button>
             </div>
             <p className="text-xs text-gray-500 text-center">
-              Your image will be stored on Irys and minted as an NFT on Solana
+              Your image will be stored on Irys and minted as an NFT on Arbitrum
             </p>
           </form>
         </div>

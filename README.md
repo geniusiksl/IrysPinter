@@ -1,13 +1,13 @@
-# SolPinter - Decentralized Pinterest on Solana
+# IrysPinter - Decentralized Pinterest on Irys
 
-A decentralized Pinterest-like platform built on Solana blockchain with Irys for decentralized storage.
+A decentralized Pinterest-like platform built on Arbitrum blockchain with Irys for decentralized storage.
 
 ## 🆕 New Features
 
-- ✅ **Real Solana Integration**: Connect with Phantom, Solflare, and other Solana wallets
+- ✅ **Real Arbitrum Integration**: Connect with MetaMask and other Ethereum wallets
 - ✅ **Irys Decentralized Storage**: Upload images and metadata to Irys network
-- ✅ **NFT Minting**: Create and mint NFTs on Solana blockchain
-- ✅ **SOL Transactions**: Buy and sell pins with real SOL
+- ✅ **NFT Minting**: Create and mint NFTs on Arbitrum blockchain
+- ✅ **ETH Transactions**: Buy and sell pins with real ETH
 - ✅ **Blockchain Verification**: Verify transactions and NFT ownership
 
 ## 🚀 Quick Start
@@ -16,8 +16,8 @@ A decentralized Pinterest-like platform built on Solana blockchain with Irys for
 - Python 3.8+
 - Node.js 16+
 - MongoDB (local or cloud)
-- Solana wallet (Phantom, Solflare, etc.)
-- SOL for transactions (use devnet for testing)
+- Ethereum wallet (MetaMask, etc.)
+- ETH for transactions (use Arbitrum for testing)
 
 ### 1. Backend Setup
 
@@ -29,9 +29,9 @@ pip install -r requirements.txt
 # Set up environment variables (create .env file)
 # See SETUP_SOLANA_IRYS.md for detailed configuration
 MONGO_URL=mongodb://localhost:27017
-DB_NAME=solpinter
-SOLANA_NETWORK=devnet
-IRYS_NETWORK=devnet
+DB_NAME=iryspinter
+ARBITRUM_NETWORK=mainnet
+IRYS_NETWORK=mainnet
 
 # Start the backend server
 python ../start_backend.py
@@ -59,7 +59,7 @@ The app will be available at:
 
 ### Frontend (React + Tailwind CSS)
 - Pinterest-like interface with masonry layout
-- Solana wallet integration
+- Ethereum wallet integration
 - NFT creation and purchase modals
 - Real-time updates
 
@@ -67,14 +67,14 @@ The app will be available at:
 - RESTful API with `/api` prefix
 - MongoDB for metadata storage
 - Irys integration for decentralized storage
-- Solana NFT minting (mock implementation)
+- Arbitrum NFT minting (mock implementation)
 
 ### Key Features
-- ✅ **Real Solana Wallet Integration**: Connect with Phantom, Solflare, Backpack
+- ✅ **Real Ethereum Wallet Integration**: Connect with MetaMask, WalletConnect
 - ✅ **Irys Decentralized Storage**: Upload images and metadata to Irys network
-- ✅ **NFT Minting**: Create and mint NFTs on Solana blockchain
-- ✅ **SOL Transactions**: Buy and sell pins with real SOL
-- ✅ **Automatic Royalties**: 1% platform fee on all sales
+- ✅ **NFT Minting**: Create and mint NFTs on Arbitrum blockchain
+- ✅ **ETH Transactions**: Buy and sell pins with real ETH
+- ✅ **Automatic Royalties**: 2.5% platform fee on all sales
 - ✅ **Royalty Management**: Track and withdraw accumulated royalties
 - ✅ **Blockchain Verification**: Verify transactions and NFT ownership
 - ✅ **Like and Comment System**: Social features for pins

@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { useWallet } from "@solana/wallet-adapter-react";
 import Header from "./Header";
 import PinGrid from "./PinGrid";
 import CreatePinModal from "./CreatePinModal";
@@ -7,24 +6,21 @@ import PinModal from "./PinModal";
 import RoyaltyInfo from "./RoyaltyInfo";
 import axios from "axios";
 import toast from "react-hot-toast";
+import { useEthereumWallet } from "../contexts/EthereumWalletProvider";
 
 const BACKEND_URL = "http://localhost:8001";
 const API = `${BACKEND_URL}/api`;
 
 const PinterestApp = () => {
-  const { publicKey, connected } = useWallet();
+  const { address, isConnected } = useEthereumWallet();
   const [pins, setPins] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedPin, setSelectedPin] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [walletAddress, setWalletAddress] = useState("");
   const [showRoyaltyInfo, setShowRoyaltyInfo] = useState(false);
 
   useEffect(() => {
     fetchPins();
-    if (window.solana && window.solana.isPhantom && window.solana.isConnected) {
-      setWalletAddress(window.solana.publicKey?.toString() || "");
-    }
   }, []);
 
   const fetchPins = async () => {
@@ -60,20 +56,6 @@ const PinterestApp = () => {
     setSelectedPin(updatedPin);
   };
 
-  const connectPhantom = async () => {
-    if (window.solana && window.solana.isPhantom) {
-      try {
-        const resp = await window.solana.connect();
-        setWalletAddress(resp.publicKey.toString());
-        toast.success("Phantom wallet connected!");
-      } catch (err) {
-        toast.error("User rejected the request");
-      }
-    } else {
-      toast.error("Please install Phantom Wallet!");
-    }
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
@@ -84,38 +66,35 @@ const PinterestApp = () => {
 
   return (
     <div className="min-h-screen bg-white">
-      <Header 
+      <Header
         onCreateClick={() => setShowCreateModal(true)}
-        isWalletConnected={!!walletAddress}
-        onConnectWallet={connectPhantom}
-        walletAddress={walletAddress}
+        isWalletConnected={!!address}
         onRoyaltyClick={() => setShowRoyaltyInfo(true)}
       />
       <div className="py-6">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            SolPinter
+            IrysPinter
           </h1>
           <p className="text-lg text-gray-600 mb-4">
-            Decentralized Pinterest on Solana - Create, Buy & Sell NFT Pins
+            Decentralized Pinterest on Irys - Create, Buy & Sell NFT Pins
           </p>
           <div className="inline-flex items-center bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-medium">
             <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-            {walletAddress ? `Wallet: ${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}` : "Wallet not connected"}
+            {address ? `Wallet: ${address.slice(0, 6)}...${address.slice(-4)}` : "Wallet not connected"}
           </div>
         </div>
       </div>
-      <PinGrid 
-        pins={pins} 
+      <PinGrid
+        pins={pins}
         onPinClick={handlePinClick}
-        currentWallet={publicKey?.toString()}
+        currentWallet={address}
       />
       {showCreateModal && (
         <CreatePinModal
           onClose={() => setShowCreateModal(false)}
           onPinCreated={handlePinCreated}
-          walletAddress={walletAddress}
-          wallet={{ publicKey, connected }}
+          walletAddress={address}
         />
       )}
       {selectedPin && (
@@ -124,29 +103,12 @@ const PinterestApp = () => {
           onClose={() => setSelectedPin(null)}
           onPurchase={handlePinPurchased}
           onPinUpdated={handlePinUpdated}
-          walletAddress={walletAddress}
-          wallet={{ publicKey, connected }}
-          currentWallet={publicKey?.toString()}
+          wallet={{ address, isConnected }}
+          currentWallet={address}
         />
       )}
-
       {showRoyaltyInfo && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">Royalty Management</h2>
-                <button
-                  onClick={() => setShowRoyaltyInfo(false)}
-                  className="text-gray-400 hover:text-gray-600 text-2xl"
-                >
-                  ×
-                </button>
-              </div>
-              <RoyaltyInfo />
-            </div>
-          </div>
-        </div>
+        <RoyaltyInfo onClose={() => setShowRoyaltyInfo(false)} />
       )}
     </div>
   );

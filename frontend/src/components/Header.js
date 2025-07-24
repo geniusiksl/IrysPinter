@@ -1,9 +1,8 @@
 import React from "react";
-import { useWallet } from "@solana/wallet-adapter-react";
-import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
+import { useEthereumWallet } from "../contexts/EthereumWalletProvider";
 
 const Header = ({ onCreateClick, isWalletConnected, onConnectWallet, walletAddress, onRoyaltyClick }) => {
-  const { publicKey, connected } = useWallet();
+  const { address, isConnected, connectWallet, disconnectWallet } = useEthereumWallet();
 
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-gray-200 px-4 py-3">
@@ -14,12 +13,12 @@ const Header = ({ onCreateClick, isWalletConnected, onConnectWallet, walletAddre
               <span className="text-white font-bold text-lg">P</span>
             </div>
             <span className="ml-2 text-xl font-bold text-gray-900">
-              SolPinter
+              IrysPinter
             </span>
           </div>
         </div>
         <div className="flex items-center space-x-4">
-          {isWalletConnected ? (
+          {isConnected ? (
             <>
               <button
                 onClick={onCreateClick}
@@ -29,36 +28,22 @@ const Header = ({ onCreateClick, isWalletConnected, onConnectWallet, walletAddre
                 <span>Create Pin</span>
               </button>
               <span className="text-gray-700 font-mono text-sm bg-gray-100 px-3 py-1 rounded-full">
-                {walletAddress.slice(0, 4)}...{walletAddress.slice(-4)}
+                {address.slice(0, 6)}...{address.slice(-4)}
               </span>
+              <button
+                onClick={disconnectWallet}
+                className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded-full font-semibold transition-colors"
+              >
+                Disconnect
+              </button>
             </>
           ) : (
             <button
-              onClick={onConnectWallet}
+              onClick={connectWallet}
               className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-full font-semibold transition-colors"
             >
-              Connect Phantom
+              Connect Wallet
             </button>
-          )}
-              
-              <button
-                onClick={onRoyaltyClick}
-                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-full font-semibold transition-colors flex items-center space-x-2"
-              >
-                <span>💰</span>
-                <span>Royalties</span>
-              </button>
-          
-          {/* Solana Wallet Connection */}
-          <WalletMultiButton className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-full font-semibold transition-colors" />
-          
-          {connected && publicKey && (
-            <div className="flex items-center space-x-2 bg-gray-100 px-4 py-2 rounded-full">
-              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-              <span className="text-gray-700 font-medium text-sm">
-                {publicKey.toString().slice(0, 4)}...{publicKey.toString().slice(-4)} (Connected)
-              </span>
-            </div>
           )}
         </div>
       </div>

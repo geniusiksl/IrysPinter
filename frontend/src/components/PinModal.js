@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
+import { useIrys } from "../hooks/useIrys";
 
 const BACKEND_URL = "http://localhost:8001";
 const API = `${BACKEND_URL}/api`;
@@ -12,20 +13,18 @@ const PinModal = ({ pin, onClose, onPurchase, onPinUpdated, wallet, currentWalle
   const [hasLiked, setHasLiked] = useState(false);
   const [loading, setLoading] = useState(false);
   const [commentLoading, setCommentLoading] = useState(false);
-  // Добавить состояния для txid и solana_txid
   const [likeTxid, setLikeTxid] = useState("");
-  const [likeSolanaTxid, setLikeSolanaTxid] = useState("");
   const [commentTxid, setCommentTxid] = useState("");
-  const [commentSolanaTxid, setCommentSolanaTxid] = useState("");
+  const { buyNFT, sellNFT, isBuying, isSelling } = useIrys();
 
   const isOwner = pinData.owner === currentWallet;
-  const canBuy = pinData.for_sale && !isOwner && wallet.connected;
+  const canBuy = pinData.for_sale && !isOwner && wallet.isConnected;
 
   useEffect(() => {
-    // Use the pin data passed as prop, but fetch additional data if needed
     setPinData(pin);
     fetchComments();
     checkIfLiked();
+    // eslint-disable-next-line
   }, [pin.id]);
 
   const fetchComments = async () => {
@@ -38,18 +37,13 @@ const PinModal = ({ pin, onClose, onPurchase, onPinUpdated, wallet, currentWalle
   };
 
   const checkIfLiked = async () => {
-    if (!wallet.connected) return;
-    
-    try {
-      const response = await axios.get(`${API}/pins/${pinData.id}/likes/${wallet.publicKey.toString()}`);
-      setHasLiked(response.data.has_liked);
-    } catch (error) {
-      console.error("Error checking like status:", error);
-    }
+    if (!wallet.isConnected) return;
+    // Здесь можно реализовать проверку лайка по адресу Ethereum
+    // setHasLiked(...)
   };
 
   const handleLike = async () => {
-    if (!wallet.connected) {
+    if (!wallet.isConnected) {
       toast.error("Please connect your wallet");
       return;
     }
@@ -60,9 +54,8 @@ const PinModal = ({ pin, onClose, onPurchase, onPinUpdated, wallet, currentWalle
     try {
       setLoading(true);
       const response = await axios.post(`${API}/pins/${pinData.id}/like`, {
-        user: wallet.publicKey.toString(),
-        txid: likeTxid,
-        solana_txid: likeSolanaTxid || undefined
+        user: wallet.address,
+        txid: likeTxid
       });
       setHasLiked(true);
       const updatedPin = {
@@ -82,7 +75,7 @@ const PinModal = ({ pin, onClose, onPurchase, onPinUpdated, wallet, currentWalle
 
   const handleComment = async (e) => {
     e.preventDefault();
-    if (!wallet.connected) {
+    if (!wallet.isConnected) {
       toast.error("Please connect your wallet");
       return;
     }
@@ -94,18 +87,15 @@ const PinModal = ({ pin, onClose, onPurchase, onPinUpdated, wallet, currentWalle
     try {
       setCommentLoading(true);
       const response = await axios.post(`${API}/pins/${pinData.id}/comment`, {
-        user: wallet.publicKey.toString(),
+        user: wallet.address,
         content: newComment.trim(),
-        txid: commentTxid,
-        solana_txid: commentSolanaTxid || undefined
+        txid: commentTxid
       });
       setComments([response.data, ...comments]);
       setNewComment("");
       setCommentTxid("");
-      setCommentSolanaTxid("");
       const updatedPin = {
         ...pinData,
-        comments: (pinData.comments || 0) + 1
       };
       setPinData(updatedPin);
       onPinUpdated(updatedPin);
@@ -119,22 +109,42 @@ const PinModal = ({ pin, onClose, onPurchase, onPinUpdated, wallet, currentWalle
   };
 
   const handlePurchase = async () => {
-    if (!wallet.connected) {
+    if (!wallet.isConnected) {
       toast.error("Please connect your wallet");
       return;
     }
-
     try {
       setLoading(true);
-      const response = await axios.post(`${API}/pins/${pinData.id}/purchase`, {
-        buyer: wallet.publicKey.toString()
-      });
-      
-      onPurchase(response.data);
+      // Вызов функции покупки NFT через контракт
+      await buyNFT(pinData.mint_address, pinData.price);
       toast.success("NFT purchased successfully!");
+      onPurchase({ ...pinData, owner: wallet.address, for_sale: false });
     } catch (error) {
       console.error("Error purchasing NFT:", error);
-      toast.error(error.response?.data?.detail || "Failed to purchase NFT");
+      toast.error(error.message || "Failed to purchase NFT");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSell = async () => {
+    if (!wallet.isConnected) {
+      toast.error("Please connect your wallet");
+      return;
+    }
+    if (!pinData.price) {
+      toast.error("Set a price to sell NFT");
+      return;
+    }
+    try {
+      setLoading(true);
+      // Вызов функции выставления NFT на продажу через контракт
+      await sellNFT(pinData.mint_address, pinData.price);
+      toast.success("NFT listed for sale!");
+      onPinUpdated({ ...pinData, for_sale: true });
+    } catch (error) {
+      console.error("Error selling NFT:", error);
+      toast.error(error.message || "Failed to list NFT for sale");
     } finally {
       setLoading(false);
     }
@@ -158,7 +168,7 @@ const PinModal = ({ pin, onClose, onPurchase, onPinUpdated, wallet, currentWalle
                 }}
               />
             ) : null}
-            <div 
+            <div
               className="flex flex-col items-center justify-center text-gray-500 p-8"
               style={{ display: pinData.image_url ? 'none' : 'flex' }}
             >
@@ -167,12 +177,14 @@ const PinModal = ({ pin, onClose, onPurchase, onPinUpdated, wallet, currentWalle
               <p className="text-sm text-gray-400 mt-2">
                 {pinData.image_txid ? `TXID: ${pinData.image_txid.slice(0, 8)}...` : 'No image data'}
               </p>
-              <button 
-                onClick={() => window.open(pinData.image_url, '_blank')}
-                className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-              >
-                Open Image in New Tab
-              </button>
+              {pinData.image_url && (
+                <button
+                  onClick={() => window.open(pinData.image_url, '_blank')}
+                  className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                >
+                  Open Image in New Tab
+                </button>
+              )}
             </div>
           </div>
 
@@ -187,42 +199,15 @@ const PinModal = ({ pin, onClose, onPurchase, onPinUpdated, wallet, currentWalle
                 {pinData.description && (
                   <p className="text-gray-600 mb-4">{pinData.description}</p>
                 )}
-                
                 {/* NFT Info */}
-                <div className="bg-gray-50 rounded-lg p-3 mb-4">
-                  <div className="text-sm text-gray-500 mb-1">NFT Details</div>
-                  <div className="text-xs text-gray-400 font-mono">
-                    Mint: {pinData.mint_address?.slice(0, 8)}...{pinData.mint_address?.slice(-8)}
-                  </div>
-                  <div className="text-xs text-gray-400">
-                    Owner: {isOwner ? "You" : `${pinData.owner?.slice(0, 8)}...${pinData.owner?.slice(-8)}`}
-                  </div>
+                <div className="text-sm text-gray-500 mb-1">NFT Details</div>
+                <div className="text-xs text-gray-400 font-mono">
+                  Mint: {pinData.mint_address?.slice(0, 8)}...{pinData.mint_address?.slice(-8)}
                 </div>
-
-                {/* Price and Purchase */}
-                {pinData.for_sale && (
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-sm text-green-600 font-medium">For Sale</div>
-                        <div className="text-2xl font-bold text-green-700">
-                          {pinData.price} SOL
-                        </div>
-                      </div>
-                      {canBuy && (
-                        <button
-                          onClick={handlePurchase}
-                          disabled={loading}
-                          className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
-                        >
-                          {loading ? "Purchasing..." : "Buy Now"}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
+                <div className="text-xs text-gray-400">
+                  Owner: {isOwner ? "You" : `${pinData.owner?.slice(0, 8)}...${pinData.owner?.slice(-8)}`}
+                </div>
               </div>
-
               <button
                 onClick={onClose}
                 className="text-gray-400 hover:text-gray-600 text-2xl ml-4"
@@ -230,7 +215,40 @@ const PinModal = ({ pin, onClose, onPurchase, onPinUpdated, wallet, currentWalle
                 ×
               </button>
             </div>
-
+            {/* Price and Purchase */}
+            {pinData.for_sale && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm text-green-600 font-medium">For Sale</div>
+                    <div className="text-2xl font-bold text-green-700">
+                      {pinData.price} ETH
+                    </div>
+                  </div>
+                  {canBuy && (
+                    <button
+                      onClick={handlePurchase}
+                      disabled={loading || isBuying}
+                      className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
+                    >
+                      {loading || isBuying ? "Purchasing..." : "Buy Now"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+            {/* Sell button for owner */}
+            {isOwner && !pinData.for_sale && (
+              <div className="mb-4">
+                <button
+                  onClick={handleSell}
+                  disabled={loading || isSelling}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
+                >
+                  {loading || isSelling ? "Listing..." : "List for Sale"}
+                </button>
+              </div>
+            )}
             {/* Actions */}
             <div className="flex items-center space-x-4 mb-6 pb-6 border-b">
               {/* Like section */}
@@ -242,20 +260,13 @@ const PinModal = ({ pin, onClose, onPurchase, onPinUpdated, wallet, currentWalle
                   placeholder="Irys txid for like"
                   className="border px-2 py-1 rounded mr-2 text-xs"
                 />
-                <input
-                  type="text"
-                  value={likeSolanaTxid}
-                  onChange={e => setLikeSolanaTxid(e.target.value)}
-                  placeholder="Solana txid (optional)"
-                  className="border px-2 py-1 rounded text-xs"
-                />
               </div>
               <button
                 onClick={handleLike}
                 disabled={loading}
                 className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
-                  hasLiked 
-                    ? "bg-red-100 text-red-600" 
+                  hasLiked
+                    ? "bg-red-100 text-red-600"
                     : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 }`}
               >
@@ -264,74 +275,36 @@ const PinModal = ({ pin, onClose, onPurchase, onPinUpdated, wallet, currentWalle
                 <span className="text-sm">({pinData.likes || 0})</span>
               </button>
             </div>
-
-            {/* Comments Section */}
-            <div className="space-y-4">
-              <h3 className="font-semibold text-gray-900">
-                Comments ({pinData.comments || 0})
-              </h3>
-
-              {/* Add Comment */}
-              {wallet.connected && (
-                <form onSubmit={handleComment} className="space-y-3">
-                  {/* Comment section */}
-                  <div className="mb-2">
-                    <input
-                      type="text"
-                      value={commentTxid}
-                      onChange={e => setCommentTxid(e.target.value)}
-                      placeholder="Irys txid for comment"
-                      className="border px-2 py-1 rounded mr-2 text-xs"
-                    />
-                    <input
-                      type="text"
-                      value={commentSolanaTxid}
-                      onChange={e => setCommentSolanaTxid(e.target.value)}
-                      placeholder="Solana txid (optional)"
-                      className="border px-2 py-1 rounded text-xs"
-                    />
-                  </div>
-                  <textarea
-                    value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                    placeholder="Add a comment..."
-                  />
-                  <button
-                    type="submit"
-                    disabled={commentLoading || !newComment.trim()}
-                    className="bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-                  >
-                    {commentLoading ? "Adding..." : "Add Comment"}
-                  </button>
-                </form>
-              )}
-
-              {/* Comments List */}
-              <div className="space-y-3 max-h-60 overflow-y-auto">
-                {comments.map((comment) => (
-                  <div key={comment.id} className="border rounded-lg p-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <p className="text-gray-900 mb-2">{comment.content}</p>
-                        <div className="text-xs text-gray-500">
-                          By {comment.user?.slice(0, 8)}...{comment.user?.slice(-8)} • {
-                            new Date(comment.created_at).toLocaleDateString()
-                          }
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {comments.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  <div className="text-4xl mb-2">💬</div>
-                  <p>No comments yet. Be the first to comment!</p>
+            {/* Comments */}
+            <form onSubmit={handleComment} className="mb-4">
+              <input
+                type="text"
+                value={newComment}
+                onChange={e => setNewComment(e.target.value)}
+                placeholder="Add a comment..."
+                className="border px-2 py-1 rounded w-2/3 text-sm"
+              />
+              <input
+                type="text"
+                value={commentTxid}
+                onChange={e => setCommentTxid(e.target.value)}
+                placeholder="Irys txid for comment"
+                className="border px-2 py-1 rounded w-1/3 text-xs ml-2"
+              />
+              <button
+                type="submit"
+                disabled={commentLoading}
+                className="ml-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-1 rounded"
+              >
+                {commentLoading ? "Adding..." : "Comment"}
+              </button>
+            </form>
+            <div className="space-y-2">
+              {comments.map((comment, idx) => (
+                <div key={idx} className="bg-gray-100 rounded p-2 text-sm">
+                  <span className="font-semibold">{comment.user?.slice(0, 6)}...{comment.user?.slice(-4)}:</span> {comment.content}
                 </div>
-              )}
+              ))}
             </div>
           </div>
         </div>
