@@ -11,21 +11,23 @@ module.exports = {
       webpackConfig.resolve = {
         ...webpackConfig.resolve,
         fallback: {
-          ...webpackConfig.resolve?.fallback,
-          crypto: require.resolve('crypto-browserify'),
+          http: require.resolve('stream-http'),
+          https: require.resolve('https-browserify'),
           stream: require.resolve('stream-browserify'),
           buffer: require.resolve('buffer/'),
+          crypto: require.resolve('crypto-browserify'),
+          os: require.resolve('os-browserify/browser'),
+          path: require.resolve('path-browserify'),
           process: require.resolve('process/browser.js'),
           util: require.resolve('util/'),
           assert: require.resolve('assert/'),
-          os: require.resolve('os-browserify/browser'),
-          path: require.resolve('path-browserify'),
           vm: require.resolve('vm-browserify'),
           fs: false,
           net: false,
           tls: false,
         },
       };
+      console.log('webpackConfig.resolve.fallback:', webpackConfig.resolve.fallback);
 
       // Add plugins for global variables
       webpackConfig.plugins = [

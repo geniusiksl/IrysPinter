@@ -1,73 +1,68 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { ethers } from 'ethers';
-import { Web3ReactProvider, useWeb3React } from '@web3-react/core';
-import { Injected } from '@web3-react/injected-v6';
-import { WalletConnect } from '@web3-react/walletconnect-v2';
-
-const injected = new Injected();
-// Для WalletConnect нужен projectId (получить на https://cloud.walletconnect.com/)
-const walletconnect = new WalletConnect({
-  projectId: 'YOUR_WALLETCONNECT_PROJECT_ID',
-  chains: [1, 42161], // Ethereum Mainnet и Arbitrum
-  showQrModal: true,
-});
+import React, { createContext, useContext, useState, useEffect } from "react";
+import Web3Modal from "web3modal";
+import WalletConnectProvider from "@walletconnect/web3-provider";
+import { ethers } from "ethers";
 
 const EthereumWalletContext = createContext(null);
-
 export const useEthereumWallet = () => useContext(EthereumWalletContext);
 
-function getLibrary(provider) {
-  return new ethers.providers.Web3Provider(provider);
-}
+const providerOptions = {
+  walletconnect: {
+    package: WalletConnectProvider,
+    options: {
+      infuraId: "YOUR_INFURA_ID" // Получи на https://infura.io/
+    }
+  }
+};
+
+let web3Modal;
 
 export default function EthereumWalletProvider({ children }) {
-  return (
-    <Web3ReactProvider getLibrary={getLibrary} connectors={[[injected], [walletconnect]]}>
-      <EthereumWalletInner>{children}</EthereumWalletInner>
-    </Web3ReactProvider>
-  );
-}
-
-function EthereumWalletInner({ children }) {
-  const { account, provider, connector, isActive, connect, disconnect } = useWeb3React();
+  const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
+  const [address, setAddress] = useState(null);
+  const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    if (provider && typeof provider.getSigner === 'function') {
-      try {
-        const newSigner = provider.getSigner();
-        setSigner(newSigner);
-      } catch (error) {
-        console.error('Error getting signer:', error);
-        setSigner(null);
-      }
-    } else {
-      setSigner(null);
+    web3Modal = new Web3Modal({
+      cacheProvider: true,
+      providerOptions
+    });
+    if (web3Modal.cachedProvider) {
+      connectWallet();
     }
-  }, [provider]);
+    // eslint-disable-next-line
+  }, []);
 
-  const connectWallet = useCallback(async () => {
+  const connectWallet = async () => {
     try {
-      await connect(injected);
-    } catch (error) {
-      console.error('Failed to connect wallet:', error);
+      const instance = await web3Modal.connect();
+      const ethersProvider = new ethers.providers.Web3Provider(instance);
+      setProvider(ethersProvider);
+      const signer = ethersProvider.getSigner();
+      setSigner(signer);
+      const address = await signer.getAddress();
+      setAddress(address);
+      setIsConnected(true);
+    } catch (e) {
+      setIsConnected(false);
     }
-  }, [connect]);
+  };
 
-  const disconnectWallet = useCallback(() => {
-    try {
-      disconnect();
-    } catch (error) {
-      console.error('Error disconnecting wallet:', error);
-    }
-  }, [disconnect]);
+  const disconnectWallet = async () => {
+    if (web3Modal) await web3Modal.clearCachedProvider();
+    setProvider(null);
+    setSigner(null);
+    setAddress(null);
+    setIsConnected(false);
+  };
 
   return (
     <EthereumWalletContext.Provider
       value={{
-        address: account || null,
-        isConnected: isActive || false,
-        provider: provider || null,
+        address,
+        isConnected,
+        provider,
         signer,
         connectWallet,
         disconnectWallet

@@ -78,7 +78,7 @@ const PinCard = ({ pin, onClick, isOwner }) => {
         {/* Price tag */}
         {pin.price && pin.for_sale && (
           <div className="absolute top-2 right-2 bg-green-500 text-white px-2 py-1 rounded-full text-sm font-bold">
-            {pin.price} SOL
+            {pin.price} ETH
           </div>
         )}
 

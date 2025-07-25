@@ -1,11 +1,8 @@
-// useIrys.js
-// Заглушка для реализации на Ethereum/Arbitrum через ethers.js
 import { useEthereumWallet } from '../contexts/EthereumWalletProvider';
 import { useState, useCallback } from 'react';
 import { ethers } from 'ethers';
-import axios from 'axios';
+import Irys from '@irys/sdk';
 
-// MarketplaceNFT ABI (полный ABI из задеплоенного контракта)
 const MARKETPLACE_CONTRACT_ABI = [
   {
     "inputs": [
@@ -318,6 +315,7 @@ const MARKETPLACE_CONTRACT_ABI = [
 // Адрес задеплоенного контракта MarketplaceNFT на Arbitrum
 const MARKETPLACE_CONTRACT_ADDRESS = '0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8';
 
+
 export const useIrys = () => {
   const { signer, address } = useEthereumWallet();
   const [isUploading, setIsUploading] = useState(false);
@@ -325,34 +323,42 @@ export const useIrys = () => {
   const [isBuying, setIsBuying] = useState(false);
   const [isSelling, setIsSelling] = useState(false);
 
-  // Проверяем, что signer и address доступны
   const isWalletReady = signer && address;
 
-  // Загрузка файла на Irys (Arweave)
+  // Новый uploadToIrys через Irys SDK и MetaMask
+
   const uploadToIrys = useCallback(async (file, tags = {}) => {
     setIsUploading(true);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      Object.entries(tags).forEach(([key, value]) => {
-        formData.append(`tag_${key}`, value);
+      if (!window.ethereum) {
+        alert("MetaMask не установлен! Пожалуйста, установите MetaMask.");
+        setIsUploading(false);
+        return;
+      }
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      await provider.send("eth_requestAccounts", []);
+      const signer = provider.getSigner();
+      const irys = new Irys({
+        url: "https://node1.irys.xyz",
+        token: "ethereum",
+        wallet: signer
       });
-      const response = await axios.post('http://localhost:8001/api/irys/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      await irys.ready();
+  
+      // Просто передавай file (File или Blob) напрямую!
+      const receipt = await irys.upload(file);
       return {
-        transactionId: response.data.id,
-        url: response.data.url
+        txid: receipt.id,
+        url: `https://gateway.irys.xyz/${receipt.id}`
       };
     } catch (error) {
-      console.error('Irys upload error:', error);
+      console.error("Irys upload error:", error);
       throw error;
     } finally {
       setIsUploading(false);
     }
   }, []);
 
-  // Формирование метаданных для NFT
   const createNFTMetadata = useCallback((name, symbol, description, imageUrl, attributes = []) => {
     return {
       name,
@@ -372,22 +378,17 @@ export const useIrys = () => {
     };
   }, []);
 
-  // Минтинг NFT через контракт (оплачивает пользователь)
   const mintNFT = useCallback(async (metadata, imageFile) => {
     if (!isWalletReady) throw new Error('Wallet not connected');
     setIsMinting(true);
     try {
-      // 1. Загрузка изображения на Irys
       const imageUpload = await uploadToIrys(imageFile, { type: 'image' });
-      // 2. Загрузка метаданных на Irys
       const metadataWithImage = { ...metadata, image: imageUpload.url };
       const metadataBlob = new Blob([JSON.stringify(metadataWithImage)], { type: 'application/json' });
       const metadataUpload = await uploadToIrys(metadataBlob, { type: 'metadata' });
-      // 3. Минтинг NFT через контракт
       const contract = new ethers.Contract(MARKETPLACE_CONTRACT_ADDRESS, MARKETPLACE_CONTRACT_ABI, signer);
       const tx = await contract.mint(metadataUpload.url);
       const receipt = await tx.wait();
-      // Получение minted tokenId (если контракт возвращает)
       let tokenId = null;
       if (receipt && receipt.events) {
         const mintEvent = receipt.events.find(e => e.event === 'Minted');
@@ -409,7 +410,6 @@ export const useIrys = () => {
     }
   }, [isWalletReady, signer, uploadToIrys]);
 
-  // Покупка NFT через контракт (оплачивает пользователь)
   const buyNFT = useCallback(async (tokenId, price) => {
     if (!isWalletReady) throw new Error('Wallet not connected');
     setIsBuying(true);
@@ -426,7 +426,6 @@ export const useIrys = () => {
     }
   }, [isWalletReady, signer]);
 
-  // Выставление NFT на продажу через контракт (оплачивает пользователь)
   const sellNFT = useCallback(async (tokenId, price) => {
     if (!isWalletReady) throw new Error('Wallet not connected');
     setIsSelling(true);
@@ -455,4 +454,4 @@ export const useIrys = () => {
     isSelling,
     isWalletReady
   };
-}; 
+};
