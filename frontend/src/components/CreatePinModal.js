@@ -13,6 +13,7 @@ const CreatePinModal = ({ onClose, onPinCreated, walletAddress }) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
+  const [duration, setDuration] = useState("");
   const [forSale, setForSale] = useState(false);
   const [image, setImage] = useState(null);
   const [previewUrl, setPreviewUrl] = useState("");
@@ -41,6 +42,18 @@ const CreatePinModal = ({ onClose, onPinCreated, walletAddress }) => {
       toast.error("Please connect your wallet");
       return;
     }
+    
+    // Проверяем, что файл является валидным
+    if (!(image instanceof File)) {
+      toast.error("Invalid image file format");
+      return;
+    }
+    
+    console.log("Starting NFT creation process...");
+    console.log("Image file:", image);
+    console.log("Image type:", image.type);
+    console.log("Image size:", image.size);
+    
     setUploading(true);
     try {
       // 1. Create NFT metadata
@@ -54,8 +67,14 @@ const CreatePinModal = ({ onClose, onPinCreated, walletAddress }) => {
           ...(price ? [{ trait_type: "Price", value: `${price} ETH` }] : [])
         ]
       );
+      
+      console.log("Created metadata:", metadata);
+      
       // 2. Mint NFT on Arbitrum/Ethereum
       const nftResult = await mintNFT(metadata, image);
+      
+      console.log("NFT minting result:", nftResult);
+      
       // 3. Save pin data to backend
       const pinData = {
         title,
@@ -66,8 +85,12 @@ const CreatePinModal = ({ onClose, onPinCreated, walletAddress }) => {
         metadata_url: nftResult.metadataUrl,
         for_sale: forSale,
         price,
+        duration: forSale && duration ? duration : null,
         transaction_signature: nftResult.transactionSignature
       };
+      
+      console.log("Saving pin data:", pinData);
+      
       const response = await axios.post(`${API}/pins`, pinData);
       onPinCreated(response.data);
       toast.success("NFT minted successfully on Arbitrum!");
@@ -96,7 +119,7 @@ const CreatePinModal = ({ onClose, onPinCreated, walletAddress }) => {
           <form onSubmit={handleSubmit}>
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Image *
+                Image
               </label>
               <input
                 type="file"
@@ -118,7 +141,7 @@ const CreatePinModal = ({ onClose, onPinCreated, walletAddress }) => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Title *
+                Title
               </label>
               <input
                 type="text"
@@ -168,6 +191,22 @@ const CreatePinModal = ({ onClose, onPinCreated, walletAddress }) => {
                 />
               </div>
             )}
+            {forSale && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  * Duration (days)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="365"
+                  value={duration || ""}
+                  onChange={(e) => setDuration(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                  placeholder="30"
+                />
+              </div>
+            )}
             <div className="pt-4">
               <button
                 type="submit"
@@ -184,9 +223,12 @@ const CreatePinModal = ({ onClose, onPinCreated, walletAddress }) => {
                 )}
               </button>
             </div>
-            <p className="text-xs text-gray-500 text-center">
-              Your image will be stored on Irys and minted as an NFT on Arbitrum
-            </p>
+            <div className="text-xs text-gray-500 text-center space-y-1">
+              <p>Your image will be stored on Irys and minted as an NFT on Arbitrum</p>
+              <p className="text-red-600 font-medium">
+                * Platform fee: 1% on all sales
+              </p>
+            </div>
           </form>
         </div>
       </div>

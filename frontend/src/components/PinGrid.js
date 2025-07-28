@@ -46,38 +46,33 @@ const PinCard = ({ pin, onClick, isOwner }) => {
       onClick={onClick}
     >
       <div className="relative bg-gray-100">
-                {pin.image_url ? (
-          <img
-            src={pin.image_url}
-            alt={pin.title}
-            className="w-full object-cover"
-            loading="lazy"
-            onError={(e) => {
-              console.error("Failed to load image:", pin.image_url);
-              e.target.style.display = 'none';
-              e.target.nextSibling.style.display = 'flex';
-            }}
-            style={{ 
-              minHeight: '200px',
-              maxHeight: '400px',
-              objectFit: 'cover'
-            }}
-          />
-        ) : null}
-        <div 
-          className="flex flex-col items-center justify-center text-gray-500 p-8"
-          style={{ display: pin.image_url ? 'none' : 'flex' }}
-        >
-          <div className="text-4xl mb-2">🖼️</div>
-          <p className="text-sm font-medium">No image</p>
-        </div>
+        {pin.image_url ? (
+          <div className="aspect-square overflow-hidden">
+            <img
+              src={pin.image_url}
+              alt={pin.title}
+              className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+              loading="lazy"
+              onError={(e) => {
+                console.error("Failed to load image:", pin.image_url);
+                e.target.style.display = 'none';
+                e.target.nextSibling.style.display = 'flex';
+              }}
+            />
+          </div>
+        ) : (
+          <div className="aspect-square flex flex-col items-center justify-center text-gray-500">
+            <div className="text-4xl mb-2">🖼️</div>
+            <p className="text-sm font-medium">No image</p>
+          </div>
+        )}
         
         {/* Overlay on hover */}
         <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity duration-300" />
         
         {/* Price tag */}
         {pin.price && pin.for_sale && (
-          <div className="absolute top-2 right-2 bg-green-500 text-white px-2 py-1 rounded-full text-sm font-bold">
+          <div className="absolute top-2 right-2 bg-red-500 text-white px-2 py-1 rounded-full text-sm font-bold">
             {pin.price} ETH
           </div>
         )}

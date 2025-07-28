@@ -24,6 +24,8 @@ let pins = [
       metadata_url: "https://gateway.irys.xyz/mockmeta1",
       price: 0.01,
       for_sale: true,
+      duration: 30,
+      expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       likes: 2,
       comments: 1,
       created_at: new Date(),
@@ -39,6 +41,8 @@ let pins = [
       metadata_url: "https://gateway.irys.xyz/mockmeta2",
       price: 0.02,
       for_sale: false,
+      duration: null,
+      expires_at: null,
       likes: 5,
       comments: 3,
       created_at: new Date(),
@@ -53,15 +57,41 @@ app.get('/api', (req, res) => {
   res.json({ message: 'IrysPinter API - Decentralized Pinterest on Ethereum/Arbitrum' });
 });
 
+// Function to check and remove expired listings
+const checkExpiredListings = () => {
+  const now = new Date();
+  pins = pins.map(pin => {
+    if (pin.for_sale && pin.expires_at && new Date(pin.expires_at) <= now) {
+      return {
+        ...pin,
+        for_sale: false,
+        expires_at: null,
+        updated_at: new Date()
+      };
+    }
+    return pin;
+  });
+};
+
 // Get all pins
 app.get('/api/pins', (req, res) => {
+  checkExpiredListings(); // Check for expired listings before returning
   res.json(pins);
 });
 
 // Create pin (NFT)
 app.post('/api/pins', upload.none(), async (req, res) => {
   try {
-    const { title, description = '', owner, mint_address, image_url, metadata_url, price, for_sale, transaction_signature } = req.body;
+    const { title, description = '', owner, mint_address, image_url, metadata_url, price, for_sale, duration, transaction_signature } = req.body;
+    
+    // Calculate expiration date if duration is provided
+    let expires_at = null;
+    if (for_sale === 'true' || for_sale === true) {
+      if (duration && parseInt(duration) > 0) {
+        expires_at = new Date(Date.now() + parseInt(duration) * 24 * 60 * 60 * 1000);
+      }
+    }
+    
     const pin = {
       id: uuidv4(),
       title,
@@ -72,6 +102,8 @@ app.post('/api/pins', upload.none(), async (req, res) => {
       metadata_url: metadata_url || null,
       price: for_sale ? parseFloat(price) : null,
       for_sale: for_sale === 'true' || for_sale === true,
+      duration: duration ? parseInt(duration) : null,
+      expires_at,
       likes: 0,
       comments: 0,
       created_at: new Date(),

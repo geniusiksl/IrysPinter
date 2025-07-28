@@ -12,10 +12,10 @@ const PinModal = ({ pin, onClose, onPurchase, onPinUpdated, wallet, currentWalle
   const [newComment, setNewComment] = useState("");
   const [hasLiked, setHasLiked] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [likeLoading, setLikeLoading] = useState(false);
   const [commentLoading, setCommentLoading] = useState(false);
-  const [likeTxid, setLikeTxid] = useState("");
-  const [commentTxid, setCommentTxid] = useState("");
-  const { buyNFT, sellNFT, isBuying, isSelling } = useIrys();
+  // Убрали поля для Irys txid - теперь процесс автоматический
+  const { buyNFT, sellNFT, uploadToIrys, isBuying, isSelling } = useIrys();
 
   const isOwner = pinData.owner === currentWallet;
   const canBuy = pinData.for_sale && !isOwner && wallet.isConnected;
@@ -47,16 +47,28 @@ const PinModal = ({ pin, onClose, onPurchase, onPinUpdated, wallet, currentWalle
       toast.error("Please connect your wallet");
       return;
     }
-    if (!likeTxid) {
-      toast.error("Please provide Irys txid for like");
-      return;
-    }
     try {
-      setLoading(true);
+      setLikeLoading(true);
+      
+      // Создаем данные лайка для Irys
+      const likeData = {
+        type: "like",
+        pinId: pinData.id,
+        user: wallet.address,
+        timestamp: Date.now(),
+        pinTitle: pinData.title
+      };
+      
+      // Загружаем в Irys
+      const likeBlob = new Blob([JSON.stringify(likeData)], { type: 'application/json' });
+      const likeUpload = await uploadToIrys(likeBlob, { type: 'like' });
+      
+      // Сохраняем в бэкенд с txid
       const response = await axios.post(`${API}/pins/${pinData.id}/like`, {
         user: wallet.address,
-        txid: likeTxid
+        txid: likeUpload.txid
       });
+      
       setHasLiked(true);
       const updatedPin = {
         ...pinData,
@@ -64,12 +76,12 @@ const PinModal = ({ pin, onClose, onPurchase, onPinUpdated, wallet, currentWalle
       };
       setPinData(updatedPin);
       onPinUpdated(updatedPin);
-      toast.success("Liked!");
+      toast.success("Liked and saved to Irys!");
     } catch (error) {
       console.error("Error liking pin:", error);
       toast.error("Failed to like pin");
     } finally {
-      setLoading(false);
+      setLikeLoading(false);
     }
   };
 
@@ -80,26 +92,38 @@ const PinModal = ({ pin, onClose, onPurchase, onPinUpdated, wallet, currentWalle
       return;
     }
     if (!newComment.trim()) return;
-    if (!commentTxid) {
-      toast.error("Please provide Irys txid for comment");
-      return;
-    }
     try {
       setCommentLoading(true);
+      
+      // Создаем данные комментария для Irys
+      const commentData = {
+        type: "comment",
+        pinId: pinData.id,
+        user: wallet.address,
+        content: newComment.trim(),
+        timestamp: Date.now(),
+        pinTitle: pinData.title
+      };
+      
+      // Загружаем в Irys
+      const commentBlob = new Blob([JSON.stringify(commentData)], { type: 'application/json' });
+      const commentUpload = await uploadToIrys(commentBlob, { type: 'comment' });
+      
+      // Сохраняем в бэкенд с txid
       const response = await axios.post(`${API}/pins/${pinData.id}/comment`, {
         user: wallet.address,
         content: newComment.trim(),
-        txid: commentTxid
+        txid: commentUpload.txid
       });
+      
       setComments([response.data, ...comments]);
       setNewComment("");
-      setCommentTxid("");
       const updatedPin = {
         ...pinData,
       };
       setPinData(updatedPin);
       onPinUpdated(updatedPin);
-      toast.success("Comment added!");
+      toast.success("Comment added and saved to Irys!");
     } catch (error) {
       console.error("Error adding comment:", error);
       toast.error("Failed to add comment");
@@ -113,10 +137,20 @@ const PinModal = ({ pin, onClose, onPurchase, onPinUpdated, wallet, currentWalle
       toast.error("Please connect your wallet");
       return;
     }
+    
+    // Проверяем, что mint_address является валидным числом
+    let tokenId;
+    if (pinData.mint_address && !isNaN(pinData.mint_address)) {
+      tokenId = parseInt(pinData.mint_address);
+    } else {
+      toast.error("Invalid NFT token ID");
+      return;
+    }
+    
     try {
       setLoading(true);
       // Вызов функции покупки NFT через контракт
-      await buyNFT(pinData.mint_address, pinData.price);
+      await buyNFT(tokenId, pinData.price);
       toast.success("NFT purchased successfully!");
       onPurchase({ ...pinData, owner: wallet.address, for_sale: false });
     } catch (error) {
@@ -155,37 +189,43 @@ const PinModal = ({ pin, onClose, onPurchase, onPinUpdated, wallet, currentWalle
       <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <div className="md:flex">
           {/* Image Section */}
-          <div className="md:w-1/2 bg-gray-100 flex items-center justify-center min-h-[400px]">
+          <div className="md:w-1/2 bg-gray-100 flex items-center justify-center p-4">
             {pinData.image_url ? (
-              <img
-                src={pinData.image_url}
-                alt={pinData.title}
-                className="w-full h-full object-contain max-h-[600px]"
-                onError={(e) => {
-                  console.error("Failed to load image:", pinData.image_url);
-                  e.target.style.display = 'none';
-                  e.target.nextSibling.style.display = 'flex';
-                }}
-              />
-            ) : null}
-            <div
-              className="flex flex-col items-center justify-center text-gray-500 p-8"
-              style={{ display: pinData.image_url ? 'none' : 'flex' }}
-            >
-              <div className="text-6xl mb-4">🖼️</div>
-              <p className="text-lg font-medium">Image not available</p>
-              <p className="text-sm text-gray-400 mt-2">
-                {pinData.image_txid ? `TXID: ${pinData.image_txid.slice(0, 8)}...` : 'No image data'}
-              </p>
-              {pinData.image_url && (
-                <button
-                  onClick={() => window.open(pinData.image_url, '_blank')}
-                  className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                >
-                  Open Image in New Tab
-                </button>
-              )}
-            </div>
+              <div className="relative w-full h-full flex items-center justify-center">
+                <img
+                  src={pinData.image_url}
+                  alt={pinData.title}
+                  className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg"
+                  style={{
+                    width: 'auto',
+                    height: 'auto',
+                    maxWidth: '100%',
+                    maxHeight: '70vh'
+                  }}
+                  onError={(e) => {
+                    console.error("Failed to load image:", pinData.image_url);
+                    e.target.style.display = 'none';
+                    e.target.nextSibling.style.display = 'flex';
+                  }}
+                />
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center text-gray-500 p-8">
+                <div className="text-6xl mb-4">🖼️</div>
+                <p className="text-lg font-medium">Image not available</p>
+                <p className="text-sm text-gray-400 mt-2">
+                  {pinData.image_txid ? `TXID: ${pinData.image_txid.slice(0, 8)}...` : 'No image data'}
+                </p>
+                {pinData.image_url && (
+                  <button
+                    onClick={() => window.open(pinData.image_url, '_blank')}
+                    className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                  >
+                    Open Image in New Tab
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Content Section */}
@@ -193,9 +233,30 @@ const PinModal = ({ pin, onClose, onPurchase, onPinUpdated, wallet, currentWalle
             {/* Header */}
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                  {pinData.title}
-                </h2>
+                <div className="flex items-center gap-3 mb-2">
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    {pinData.title}
+                  </h2>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={handleLike}
+                      disabled={likeLoading}
+                      className={`text-2xl transition-all duration-200 hover:scale-110 ${
+                        hasLiked ? "text-red-500" : "text-gray-400 hover:text-red-400"
+                      }`}
+                      title="Like will be saved to Irys (requires wallet signature)"
+                    >
+                      {likeLoading ? (
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-red-500"></div>
+                      ) : (
+                        hasLiked ? "❤️" : "🤍"
+                      )}
+                    </button>
+                    <span className="text-sm text-gray-500">
+                      ({pinData.likes || 0})
+                    </span>
+                  </div>
+                </div>
                 {pinData.description && (
                   <p className="text-gray-600 mb-4">{pinData.description}</p>
                 )}
@@ -210,18 +271,18 @@ const PinModal = ({ pin, onClose, onPurchase, onPinUpdated, wallet, currentWalle
               </div>
               <button
                 onClick={onClose}
-                className="text-gray-400 hover:text-gray-600 text-2xl ml-4"
+                className="text-gray-400 hover:text-gray-600 text-2xl ml-4 -mt-2"
               >
                 ×
               </button>
             </div>
             {/* Price and Purchase */}
             {pinData.for_sale && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+              <div className="mb-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-sm text-green-600 font-medium">For Sale</div>
-                    <div className="text-2xl font-bold text-green-700">
+                    <div className="text-sm text-gray-700 font-medium">For Sale</div>
+                    <div className="text-2xl font-bold text-gray-900">
                       {pinData.price} ETH
                     </div>
                   </div>
@@ -229,7 +290,7 @@ const PinModal = ({ pin, onClose, onPurchase, onPinUpdated, wallet, currentWalle
                     <button
                       onClick={handlePurchase}
                       disabled={loading || isBuying}
-                      className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
+                      className="bg-black hover:bg-gray-800 disabled:bg-gray-400 text-white px-6 py-2 rounded-full font-semibold transition-colors"
                     >
                       {loading || isBuying ? "Purchasing..." : "Buy Now"}
                     </button>
@@ -238,66 +299,77 @@ const PinModal = ({ pin, onClose, onPurchase, onPinUpdated, wallet, currentWalle
               </div>
             )}
             {/* Sell button for owner */}
-            {isOwner && !pinData.for_sale && (
+            {isOwner && (
               <div className="mb-4">
-                <button
-                  onClick={handleSell}
-                  disabled={loading || isSelling}
-                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
-                >
-                  {loading || isSelling ? "Listing..." : "List for Sale"}
-                </button>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-3">
+                  <div className="mb-3">
+                    <label className="block text-sm font-medium text-blue-700 mb-1">
+                      Price (ETH)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.001"
+                      min="0"
+                      value={pinData.price || ""}
+                      onChange={(e) => onPinUpdated({ ...pinData, price: e.target.value })}
+                      className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="0.01"
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="block text-sm font-medium text-blue-700 mb-1">
+                      Duration (days)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="365"
+                      value={pinData.duration || 30}
+                      onChange={(e) => onPinUpdated({ ...pinData, duration: e.target.value })}
+                      className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="30"
+                    />
+                  </div>
+                  <button
+                    onClick={handleSell}
+                    disabled={loading || isSelling}
+                    className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
+                  >
+                    {loading || isSelling ? "Listing..." : "List for Sale"}
+                  </button>
+                </div>
               </div>
             )}
-            {/* Actions */}
-            <div className="flex items-center space-x-4 mb-6 pb-6 border-b">
-              {/* Like section */}
-              <div className="mb-2">
-                <input
-                  type="text"
-                  value={likeTxid}
-                  onChange={e => setLikeTxid(e.target.value)}
-                  placeholder="Irys txid for like"
-                  className="border px-2 py-1 rounded mr-2 text-xs"
-                />
-              </div>
-              <button
-                onClick={handleLike}
-                disabled={loading}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
-                  hasLiked
-                    ? "bg-red-100 text-red-600"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                }`}
-              >
-                <span>{hasLiked ? "💜" : "🤍"}</span>
-                <span>{hasLiked ? "Liked" : "Like"}</span>
-                <span className="text-sm">({pinData.likes || 0})</span>
-              </button>
-            </div>
             {/* Comments */}
             <form onSubmit={handleComment} className="mb-4">
-              <input
-                type="text"
-                value={newComment}
-                onChange={e => setNewComment(e.target.value)}
-                placeholder="Add a comment..."
-                className="border px-2 py-1 rounded w-2/3 text-sm"
-              />
-              <input
-                type="text"
-                value={commentTxid}
-                onChange={e => setCommentTxid(e.target.value)}
-                placeholder="Irys txid for comment"
-                className="border px-2 py-1 rounded w-1/3 text-xs ml-2"
-              />
-              <button
-                type="submit"
-                disabled={commentLoading}
-                className="ml-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-1 rounded"
-              >
-                {commentLoading ? "Adding..." : "Comment"}
-              </button>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={newComment}
+                  onChange={e => setNewComment(e.target.value)}
+                  placeholder="Add a comment..."
+                  className="border px-3 py-2 rounded-lg w-full text-sm pr-12 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                />
+                {newComment.trim() && (
+                  <button
+                    type="submit"
+                    disabled={commentLoading}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-red-500 hover:text-red-600 transition-colors disabled:opacity-50"
+                    title="Comment will be saved to Irys (requires wallet signature)"
+                  >
+                    {commentLoading ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-500"></div>
+                    ) : (
+                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
+                        <path 
+                          d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" 
+                          fill="currentColor"
+                        />
+                      </svg>
+                    )}
+                  </button>
+                )}
+              </div>
             </form>
             <div className="space-y-2">
               {comments.map((comment, idx) => (
@@ -306,6 +378,8 @@ const PinModal = ({ pin, onClose, onPurchase, onPinUpdated, wallet, currentWalle
                 </div>
               ))}
             </div>
+            
+
           </div>
         </div>
       </div>

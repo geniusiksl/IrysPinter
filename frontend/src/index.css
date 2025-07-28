@@ -15,3 +15,39 @@ code {
     font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
         monospace;
 }
+
+/* Web3Modal overlay customization - убираем затемнение полностью */
+.web3modal-overlay {
+    background-color: transparent !important;
+}
+
+/* Более агрессивное переопределение для Web3Modal */
+#walletconnect-wrapper {
+    background-color: transparent !important;
+}
+
+.walletconnect-modal__overlay {
+    background-color: transparent !important;
+}
+
+/* Возвращаем белый цвет модалки */
+.walletconnect-modal__base {
+    background-color: white !important;
+}
+
+/* Для всех возможных вариантов затемнения */
+[data-wc-overlay] {
+    background-color: transparent !important;
+}
+
+/* Переопределение для всех модальных окон - убираем затемнение */
+.modal-overlay,
+.overlay,
+[class*="overlay"] {
+    background-color: transparent !important;
+}
+
+/* Сохраняем белый цвет для модальных окон */
+[class*="modal"] {
+    background-color: white !important;
+}

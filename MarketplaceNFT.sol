@@ -6,7 +6,7 @@ import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.9.3/contr
 
 contract MarketplaceNFT is ERC721URIStorage, Ownable {
     uint256 public nextTokenId;
-    uint256 public feeBasisPoints = 250; // 2.5% комиссия
+    uint256 public feeBasisPoints = 100;
     address public feeRecipient;
 
     struct Listing {

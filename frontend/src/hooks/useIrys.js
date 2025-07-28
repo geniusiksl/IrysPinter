@@ -335,18 +335,98 @@ export const useIrys = () => {
         setIsUploading(false);
         return;
       }
+      
+      // Проверяем, что файл существует и является File или Blob
+      if (!file || !(file instanceof File || file instanceof Blob)) {
+        throw new Error("Invalid file format. Expected File or Blob object.");
+      }
+      
       const provider = new ethers.providers.Web3Provider(window.ethereum);
       await provider.send("eth_requestAccounts", []);
       const signer = provider.getSigner();
-      const irys = new Irys({
-        url: "https://node1.irys.xyz",
-        token: "ethereum",
-        wallet: signer
-      });
-      await irys.ready();
+      
+      // Попробуем разные URL для Irys (начнем с devnet для тестирования)
+      const irysUrls = [
+        "https://devnet.irys.xyz",
+        "https://node1.irys.xyz",
+        "https://node2.irys.xyz"
+      ];
+      
+      let irys;
+      let connected = false;
+      
+      for (const url of irysUrls) {
+        try {
+          console.log(`Trying to connect to Irys at: ${url}`);
+          irys = new Irys({
+            url: url,
+            token: "ethereum",
+            wallet: signer
+          });
+          await irys.ready();
+          console.log(`Successfully connected to Irys at: ${url}`);
+          
+          // Проверяем баланс
+          try {
+            const balance = await irys.getLoadedBalance();
+            console.log(`Irys balance: ${balance}`);
+            if (balance <= 0) {
+              console.log("Warning: Low or zero balance on Irys");
+              // Не прерываем подключение, только предупреждаем
+            }
+          } catch (balanceError) {
+            console.log("Could not check balance:", balanceError.message);
+            // Не прерываем подключение при ошибке проверки баланса
+          }
+          
+          connected = true;
+          break;
+        } catch (error) {
+          console.log(`Failed to connect to ${url}:`, error.message);
+          continue;
+        }
+      }
+      
+      if (!connected) {
+        throw new Error("Failed to connect to any Irys node. Please check your internet connection and try again.");
+      }
   
-      // Просто передавай file (File или Blob) напрямую!
-      const receipt = await irys.upload(file);
+      // Добавляем теги к файлу
+      const uploadTags = [
+        { name: "Content-Type", value: file.type || "application/octet-stream" },
+        { name: "application-id", value: "IrysPinter" },
+        ...Object.entries(tags).map(([key, value]) => ({ name: key, value }))
+      ];
+  
+      console.log("Uploading file to Irys:", {
+        fileType: file.type,
+        fileSize: file.size,
+        tags: uploadTags
+      });
+  
+      // Загружаем файл с тегами
+      let receipt;
+      
+      // Используем правильный метод для загрузки файлов
+      try {
+        if (file instanceof File) {
+          // Для File объектов используем uploadFile
+          receipt = await irys.uploadFile(file, { tags: uploadTags });
+        } else {
+          // Для Blob объектов конвертируем в Buffer
+          const arrayBuffer = await file.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+          receipt = await irys.upload(buffer, { tags: uploadTags });
+        }
+        
+        console.log("Upload successful:", receipt);
+      } catch (uploadError) {
+        if (uploadError.message.includes("balance") || uploadError.message.includes("402")) {
+          throw new Error("Insufficient balance on Irys. Please fund your account first.");
+        }
+        throw uploadError;
+      }
+      
       return {
         txid: receipt.id,
         url: `https://gateway.irys.xyz/${receipt.id}`
@@ -382,13 +462,45 @@ export const useIrys = () => {
     if (!isWalletReady) throw new Error('Wallet not connected');
     setIsMinting(true);
     try {
+      console.log("Starting NFT minting process...");
+      console.log("Image file:", imageFile);
+      console.log("Metadata:", metadata);
+      
+      // 1. Загружаем изображение в Irys
+      console.log("Step 1: Uploading image to Irys...");
       const imageUpload = await uploadToIrys(imageFile, { type: 'image' });
-      const metadataWithImage = { ...metadata, image: imageUpload.url };
-      const metadataBlob = new Blob([JSON.stringify(metadataWithImage)], { type: 'application/json' });
+      console.log("Image upload result:", imageUpload);
+      
+      // 2. Создаем метаданные с URL изображения
+      const metadataWithImage = { 
+        ...metadata, 
+        image: imageUpload.url 
+      };
+      console.log("Metadata with image URL:", metadataWithImage);
+      
+      // 3. Создаем Blob из метаданных JSON
+      const metadataJson = JSON.stringify(metadataWithImage, null, 2);
+      const metadataBlob = new Blob([metadataJson], { 
+        type: 'application/json' 
+      });
+      console.log("Metadata blob created:", metadataBlob);
+      console.log("Metadata JSON:", metadataJson);
+      
+      // 4. Загружаем метаданные в Irys
+      console.log("Step 2: Uploading metadata to Irys...");
       const metadataUpload = await uploadToIrys(metadataBlob, { type: 'metadata' });
+      console.log("Metadata upload result:", metadataUpload);
+      
+      // 5. Минтим NFT в смарт-контракте
+      console.log("Step 3: Minting NFT on Arbitrum...");
       const contract = new ethers.Contract(MARKETPLACE_CONTRACT_ADDRESS, MARKETPLACE_CONTRACT_ABI, signer);
       const tx = await contract.mint(metadataUpload.url);
+      console.log("Transaction sent:", tx.hash);
+      
       const receipt = await tx.wait();
+      console.log("Transaction receipt:", receipt);
+      
+      // 6. Получаем tokenId из события
       let tokenId = null;
       if (receipt && receipt.events) {
         const mintEvent = receipt.events.find(e => e.event === 'Minted');
@@ -396,12 +508,16 @@ export const useIrys = () => {
           tokenId = mintEvent.args.tokenId.toString();
         }
       }
-      return {
+      
+      const result = {
         mintAddress: tokenId || 'Minted',
         imageUrl: imageUpload.url,
         metadataUrl: metadataUpload.url,
         transactionSignature: tx.hash
       };
+      
+      console.log("NFT minting completed:", result);
+      return result;
     } catch (error) {
       console.error('NFT minting error:', error);
       throw error;
@@ -442,12 +558,39 @@ export const useIrys = () => {
     }
   }, [isWalletReady, signer]);
 
+  const fundIrysAccount = useCallback(async (amount) => {
+    if (!isWalletReady) throw new Error('Wallet not connected');
+    
+    try {
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const signer = provider.getSigner();
+      
+      const irys = new Irys({
+        url: "https://devnet.irys.xyz",
+        token: "ethereum",
+        wallet: signer,
+        config: {
+          providerUrl: "https://arb1.arbitrum.io/rpc"
+        }
+      });
+      await irys.ready();
+      
+      const fundResult = await irys.fund(amount);
+      console.log("Irys account funded:", fundResult);
+      return fundResult;
+    } catch (error) {
+      console.error("Failed to fund Irys account:", error);
+      throw error;
+    }
+  }, [isWalletReady]);
+
   return {
     uploadToIrys,
     mintNFT,
     buyNFT,
     sellNFT,
     createNFTMetadata,
+    fundIrysAccount,
     isUploading,
     isMinting,
     isBuying,
