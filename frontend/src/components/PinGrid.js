@@ -72,14 +72,14 @@ const PinCard = ({ pin, onClick, isOwner }) => {
         
         {/* Price tag */}
         {pin.price && pin.for_sale && (
-          <div className="absolute top-2 right-2 bg-red-500 text-white px-2 py-1 rounded-full text-sm font-bold">
+          <div className="absolute top-2 right-2 bg-[#51FED6] text-gray-900 px-2 py-1 rounded-full text-sm font-bold">
             {pin.price} ETH
           </div>
         )}
 
         {/* Owner badge */}
         {isOwner && (
-          <div className="absolute top-2 left-2 bg-blue-500 text-white px-2 py-1 rounded-full text-xs">
+          <div className="absolute top-2 left-2 bg-gray-900 text-white px-2 py-1 rounded-full text-xs">
             Owned
           </div>
         )}

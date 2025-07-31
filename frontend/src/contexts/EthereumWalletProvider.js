@@ -11,14 +11,14 @@ const createWalletConnectProvider = () => {
       1: "https://mainnet.infura.io/v3/762f3049a4ce44d4887f9ba4eb411a23"
     },
     chainId: 42161,
-    qrcode: false,
-    pollingInterval: 15000,
+    qrcode: true, // Включаем QR код
+    pollingInterval: 8000, // Уменьшаем интервал
     bridge: "https://bridge.walletconnect.org",
     clientMeta: {
       name: "IrysPinter",
       description: "Decentralized Pinterest on Irys",
       url: window.location.origin,
-      icons: []
+      icons: ["https://your-app-icon.png"] // Добавьте иконку вашего приложения
     },
     infuraId: "762f3049a4ce44d4887f9ba4eb411a23"
   });
@@ -36,14 +36,14 @@ const providerOptions = {
         1: "https://mainnet.infura.io/v3/762f3049a4ce44d4887f9ba4eb411a23"
       },
       chainId: 42161,
-      qrcode: false,
-      pollingInterval: 15000,
+      qrcode: true,
+      pollingInterval: 8000,
       bridge: "https://bridge.walletconnect.org",
       clientMeta: {
         name: "IrysPinter",
         description: "Decentralized Pinterest on Irys",
         url: window.location.origin,
-        icons: []
+        icons: ["https://your-app-icon.png"]
       },
       infuraId: "762f3049a4ce44d4887f9ba4eb411a23"
     }
@@ -59,8 +59,25 @@ export default function EthereumWalletProvider({ children }) {
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
+    // Очищаем предыдущие подключения при загрузке
+    const clearPreviousConnections = async () => {
+      if (typeof window.ethereum !== 'undefined') {
+        try {
+          // Пытаемся отключить все разрешения
+          await window.ethereum.request({ 
+            method: 'wallet_revokePermissions', 
+            params: [{ eth_accounts: {} }] 
+          });
+        } catch (error) {
+          console.log("Clear previous connections failed:", error);
+        }
+      }
+    };
+    
+    clearPreviousConnections();
+    
     web3Modal = new Web3Modal({
-      cacheProvider: true,
+      cacheProvider: false, // Отключаем кэширование для предотвращения путаницы
       providerOptions,
       theme: "light",
       accentColor: "red",
@@ -68,15 +85,93 @@ export default function EthereumWalletProvider({ children }) {
       disableInjectedProvider: false,
       network: "arbitrum"
     });
-    if (web3Modal.cachedProvider) {
-      connectWallet();
-    }
+    // Убираем автоматическое подключение к кэшированному провайдеру
     // eslint-disable-next-line
   }, []);
 
-  const connectWallet = async () => {
+  const connectWallet = async (walletType = null) => {
     try {
-      const instance = await web3Modal.connect();
+      // Очищаем предыдущее состояние перед новым подключением
+      setProvider(null);
+      setSigner(null);
+      setAddress(null);
+      setIsConnected(false);
+      
+      // Очищаем кэш Web3Modal для принудительного нового подключения
+      if (web3Modal) {
+        await web3Modal.clearCachedProvider();
+      }
+      
+      let instance;
+      
+      if (walletType === "metamask") {
+        // Подключение к MetaMask
+        if (typeof window.ethereum !== 'undefined') {
+          // Принудительно отключаем предыдущие подключения
+          try {
+            await window.ethereum.request({ method: 'wallet_requestPermissions', params: [{ eth_accounts: {} }] });
+          } catch (error) {
+            console.log("Permission request failed, continuing...");
+          }
+          
+          instance = window.ethereum;
+          // Запрашиваем подключение аккаунтов
+          try {
+            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+            console.log("MetaMask accounts:", accounts);
+          } catch (error) {
+            console.error("MetaMask connection error:", error);
+            throw new Error("Failed to connect MetaMask. Please check if wallet is unlocked.");
+          }
+        } else {
+          throw new Error("MetaMask not found. Please install MetaMask extension.");
+        }
+      } else if (walletType === "rabby") {
+        // Подключение к Rabby Wallet
+        if (typeof window.ethereum !== 'undefined') {
+          // Принудительно отключаем предыдущие подключения
+          try {
+            await window.ethereum.request({ method: 'wallet_requestPermissions', params: [{ eth_accounts: {} }] });
+          } catch (error) {
+            console.log("Permission request failed, continuing...");
+          }
+          
+          instance = window.ethereum;
+          
+          // Запрашиваем подключение аккаунтов
+          try {
+            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+            console.log("Rabby accounts:", accounts);
+          } catch (error) {
+            console.error("Rabby connection error:", error);
+            throw new Error("Failed to connect Rabby Wallet. Please check if wallet is unlocked.");
+          }
+        } else {
+          throw new Error("Rabby Wallet not found. Please install Rabby Wallet extension.");
+        }
+      } else if (walletType === "walletconnect") {
+        // Подключение через WalletConnect
+        try {
+          const walletConnectProvider = createWalletConnectProvider();
+          
+          // Добавляем таймаут для подключения
+          const connectionPromise = walletConnectProvider.enable();
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error("Connection timeout")), 30000)
+          );
+          
+          await Promise.race([connectionPromise, timeoutPromise]);
+          instance = walletConnectProvider;
+        } catch (error) {
+          console.error("WalletConnect error:", error);
+          throw new Error("Failed to connect via WalletConnect. Please try again.");
+        }
+
+      } else {
+        // Используем Web3Modal для автоматического выбора
+        instance = await web3Modal.connect();
+      }
+
       const ethersProvider = new ethers.providers.Web3Provider(instance);
       
       // Проверяем и переключаем на Arbitrum
@@ -115,18 +210,63 @@ export default function EthereumWalletProvider({ children }) {
       const address = await signer.getAddress();
       setAddress(address);
       setIsConnected(true);
+      
+      // Сохраняем тип подключенного кошелька
+      localStorage.setItem('connectedWalletType', walletType);
     } catch (e) {
       console.error("Wallet connection error:", e);
       setIsConnected(false);
+      throw e;
     }
   };
 
   const disconnectWallet = async () => {
-    if (web3Modal) await web3Modal.clearCachedProvider();
+    console.log("Disconnecting wallet...");
+    
+    // Очищаем кэш Web3Modal
+    if (web3Modal) {
+      await web3Modal.clearCachedProvider();
+    }
+    
+    // Отключаемся от текущего провайдера
+    if (provider) {
+      try {
+        // Для WalletConnect
+        if (provider.wc) {
+          await provider.wc.killSession();
+        }
+        // Для других провайдеров
+        if (provider.removeAllListeners) {
+          provider.removeAllListeners();
+        }
+      } catch (error) {
+        console.log("Provider disconnect error:", error);
+      }
+    }
+    
+    // Принудительно отключаем от ethereum
+    if (typeof window.ethereum !== 'undefined') {
+      try {
+        // Пытаемся отключить все разрешения
+        await window.ethereum.request({ 
+          method: 'wallet_revokePermissions', 
+          params: [{ eth_accounts: {} }] 
+        });
+      } catch (error) {
+        console.log("Revoke permissions failed:", error);
+      }
+    }
+    
+    // Очищаем состояние
     setProvider(null);
     setSigner(null);
     setAddress(null);
     setIsConnected(false);
+    
+    // Очищаем сохраненный тип кошелька
+    localStorage.removeItem('connectedWalletType');
+    
+    console.log("Wallet disconnected successfully");
   };
 
   const checkNetwork = async () => {

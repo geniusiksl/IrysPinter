@@ -105,19 +105,24 @@ const CreatePinModal = ({ onClose, onPinCreated, walletAddress }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-lg w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Create NFT Pin</h2>
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-[#51FED6] rounded-xl flex items-center justify-center">
+                <span className="text-2xl">📌</span>
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900">Create NFT Pin</h2>
+            </div>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 text-2xl"
+              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
             >
-              ×
+              <span className="text-2xl text-gray-500">×</span>
             </button>
           </div>
           <form onSubmit={handleSubmit}>
-            <div className="mb-4">
+            <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Image
               </label>
@@ -131,7 +136,7 @@ const CreatePinModal = ({ onClose, onPinCreated, walletAddress }) => {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="mt-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                className="mt-2 px-4 py-3 bg-[#51FED6] text-gray-900 rounded-xl hover:bg-[#4AE8C7] transition-all duration-200 font-medium"
               >
                 Choose Image
               </button>
@@ -139,7 +144,7 @@ const CreatePinModal = ({ onClose, onPinCreated, walletAddress }) => {
                 <img src={previewUrl} alt="Preview" className="mt-4 max-h-48 rounded-lg" />
               )}
             </div>
-            <div>
+            <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Title
               </label>
@@ -147,12 +152,12 @@ const CreatePinModal = ({ onClose, onPinCreated, walletAddress }) => {
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#51FED6] focus:border-[#51FED6] transition-all duration-200"
                 placeholder="Enter pin title"
                 required
               />
             </div>
-            <div>
+            <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Description
               </label>
@@ -160,39 +165,40 @@ const CreatePinModal = ({ onClose, onPinCreated, walletAddress }) => {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#51FED6] focus:border-[#51FED6] transition-all duration-200"
                 placeholder="Describe your NFT..."
               />
             </div>
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-3 p-4 bg-gray-50 rounded-xl mb-6">
               <input
                 type="checkbox"
                 id="forSale"
                 checked={forSale}
                 onChange={(e) => setForSale(e.target.checked)}
+                className="w-4 h-4 text-[#51FED6] bg-gray-100 border-gray-300 rounded focus:ring-[#51FED6] focus:ring-2"
               />
               <label htmlFor="forSale" className="text-sm font-medium text-gray-700">
                 List for sale
               </label>
             </div>
             {forSale && (
-              <div>
+              <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Price (ETH)
                 </label>
                 <input
                   type="number"
-                  step="0.001"
+                  step="any"
                   min="0"
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#51FED6] focus:border-[#51FED6] transition-all duration-200"
                   placeholder="0.01"
                 />
               </div>
             )}
             {forSale && (
-              <div>
+              <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   * Duration (days)
                 </label>
@@ -202,7 +208,7 @@ const CreatePinModal = ({ onClose, onPinCreated, walletAddress }) => {
                   max="365"
                   value={duration || ""}
                   onChange={(e) => setDuration(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#51FED6] focus:border-[#51FED6] transition-all duration-200"
                   placeholder="30"
                 />
               </div>
@@ -211,11 +217,11 @@ const CreatePinModal = ({ onClose, onPinCreated, walletAddress }) => {
               <button
                 type="submit"
                 disabled={uploading || !image || !title}
-                className="w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white py-3 px-4 rounded-lg font-semibold transition-colors flex items-center justify-center space-x-2"
+                className="w-full bg-[#51FED6] hover:bg-[#4AE8C7] disabled:bg-gray-400 text-gray-900 py-4 px-6 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center space-x-2 transform hover:scale-[1.02]"
               >
                 {uploading ? (
                   <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-900"></div>
                     <span>Creating NFT Pin...</span>
                   </>
                 ) : (
@@ -223,9 +229,9 @@ const CreatePinModal = ({ onClose, onPinCreated, walletAddress }) => {
                 )}
               </button>
             </div>
-            <div className="text-xs text-gray-500 text-center space-y-1">
+            <div className="text-xs text-gray-500 text-center space-y-2 mt-4 p-4 bg-gray-50 rounded-xl">
               <p>Your image will be stored on Irys and minted as an NFT on Arbitrum</p>
-              <p className="text-red-600 font-medium">
+              <p className="text-[#51FED6] font-medium">
                 * Platform fee: 1% on all sales
               </p>
             </div>
