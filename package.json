@@ -1,0 +1,14 @@
+{
+  "name": "iryspinter",
+  "version": "1.0.0",
+  "description": "Decentralized Pinterest on Ethereum/Arbitrum",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test_mongodb_connection.js",
+    "start": "node backend/server.js"
+  },
+  "dependencies": {
+    "mongoose": "^7.6.3",
+    "dotenv": "^16.3.1"
+  }
+} 

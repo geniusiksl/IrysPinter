@@ -56,7 +56,7 @@ const CreatePinModal = ({ onClose, onPinCreated, walletAddress }) => {
     
     setUploading(true);
     try {
-      // 1. Create NFT metadata
+      // 1. Create NFT metadata with price if for sale
       const metadata = createNFTMetadata(
         title,
         "PIN",
@@ -64,13 +64,18 @@ const CreatePinModal = ({ onClose, onPinCreated, walletAddress }) => {
         "", // Will be set after image upload
         [
           { trait_type: "Platform", value: "IrysPinter" },
-          ...(price ? [{ trait_type: "Price", value: `${price} ETH` }] : [])
+          ...(forSale && price ? [{ trait_type: "Price", value: `${price} ETH` }] : [])
         ]
       );
       
+      // Add price to metadata if for sale
+      if (forSale && price) {
+        metadata.price = parseFloat(price);
+      }
+      
       console.log("Created metadata:", metadata);
       
-      // 2. Mint NFT on Arbitrum/Ethereum
+      // 2. Mint NFT on Arbitrum/Ethereum (with automatic listing if for sale)
       const nftResult = await mintNFT(metadata, image);
       
       console.log("NFT minting result:", nftResult);
@@ -83,17 +88,35 @@ const CreatePinModal = ({ onClose, onPinCreated, walletAddress }) => {
         mint_address: nftResult.mintAddress,
         image_url: nftResult.imageUrl,
         metadata_url: nftResult.metadataUrl,
-        for_sale: forSale,
-        price,
-        duration: forSale && duration ? duration : null,
+        for_sale: forSale && !nftResult.listingFailed,
+        price: forSale && !nftResult.listingFailed ? price : null,
+        duration: forSale && duration && !nftResult.listingFailed ? duration : null,
         transaction_signature: nftResult.transactionSignature
       };
       
       console.log("Saving pin data:", pinData);
       
+      console.log("API URL:", `${API}/pins`);
+      console.log("Making POST request to backend...");
+      
       const response = await axios.post(`${API}/pins`, pinData);
+      console.log("Backend response:", response.data);
+      
+      // Убеждаемся, что у пина есть _id
+      if (!response.data._id) {
+        throw new Error("Pin created but no _id returned");
+      }
+      
       onPinCreated(response.data);
-      toast.success("NFT minted successfully on Arbitrum!");
+      
+      if (nftResult.listingFailed) {
+        toast.success("NFT minted successfully, but could not be listed for sale. You can list it later from your profile.");
+      } else if (forSale) {
+        toast.success("NFT minted and listed for sale successfully!");
+      } else {
+        toast.success("NFT minted successfully!");
+      }
+      
       setUploading(false);
       onClose();
     } catch (error) {
@@ -178,62 +201,70 @@ const CreatePinModal = ({ onClose, onPinCreated, walletAddress }) => {
                 className="w-4 h-4 text-[#51FED6] bg-gray-100 border-gray-300 rounded focus:ring-[#51FED6] focus:ring-2"
               />
               <label htmlFor="forSale" className="text-sm font-medium text-gray-700">
-                List for sale
+                List for sale immediately
               </label>
             </div>
             {forSale && (
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Price (ETH)
-                </label>
-                <input
-                  type="number"
-                  step="any"
-                  min="0"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#51FED6] focus:border-[#51FED6] transition-all duration-200"
-                  placeholder="0.01"
-                />
-              </div>
+              <>
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Price (ETH)
+                  </label>
+                  <input
+                    type="number"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    step="0.000001"
+                    min="0.000001"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#51FED6] focus:border-[#51FED6] transition-all duration-200"
+                    placeholder="1"
+                    required={forSale}
+                    onInvalid={(e) => {
+                      e.target.setCustomValidity("Please enter a valid price. Minimum value is 0.000001 ETH");
+                    }}
+                    onInput={(e) => {
+                      e.target.setCustomValidity("");
+                    }}
+                  />
+                </div>
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Duration (days, optional)
+                  </label>
+                  <input
+                    type="number"
+                    value={duration}
+                    onChange={(e) => setDuration(e.target.value)}
+                    min="1"
+                    max="365"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#51FED6] focus:border-[#51FED6] transition-all duration-200"
+                    placeholder="30"
+                  />
+                </div>
+              </>
             )}
-            {forSale && (
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  * Duration (days)
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="365"
-                  value={duration || ""}
-                  onChange={(e) => setDuration(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#51FED6] focus:border-[#51FED6] transition-all duration-200"
-                  placeholder="30"
-                />
-              </div>
-            )}
-            <div className="pt-4">
+            <div className="flex space-x-4">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all duration-200 font-medium"
+              >
+                Cancel
+              </button>
               <button
                 type="submit"
-                disabled={uploading || !image || !title}
-                className="w-full bg-[#51FED6] hover:bg-[#4AE8C7] disabled:bg-gray-400 text-gray-900 py-4 px-6 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center space-x-2 transform hover:scale-[1.02]"
+                disabled={uploading || isUploading || isMinting}
+                className="flex-1 px-6 py-3 bg-[#51FED6] text-gray-900 rounded-xl hover:bg-[#4AE8C7] transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {uploading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-900"></div>
-                    <span>Creating NFT Pin...</span>
-                  </>
+                {uploading || isUploading || isMinting ? (
+                  <div className="flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-900 mr-2"></div>
+                    {isUploading ? "Uploading..." : isMinting ? "Minting..." : "Creating..."}
+                  </div>
                 ) : (
-                  <span>Create NFT Pin</span>
+                  "Create NFT"
                 )}
               </button>
-            </div>
-            <div className="text-xs text-gray-500 text-center space-y-2 mt-4 p-4 bg-gray-50 rounded-xl">
-              <p>Your image will be stored on Irys and minted as an NFT on Arbitrum</p>
-              <p className="text-[#51FED6] font-medium">
-                * Platform fee: 1% on all sales
-              </p>
             </div>
           </form>
         </div>

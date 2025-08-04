@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { User, X, Heart, MessageCircle, Eye, Download } from "lucide-react";
+import { User, X, Heart, MessageCircle, Trash2 } from "lucide-react";
 import { profileService } from "../services/profileService";
 import { useEthereumWallet } from "../contexts/EthereumWalletProvider";
+import axios from "axios";
+import toast from "react-hot-toast";
+
+const BACKEND_URL = "http://localhost:8001";
+const API = `${BACKEND_URL}/api`;
 
 const ProfileModal = ({ isOpen, onClose }) => {
   const { address } = useEthereumWallet();
@@ -11,10 +16,11 @@ const ProfileModal = ({ isOpen, onClose }) => {
   const [stats, setStats] = useState({
     totalPins: 0,
     totalLikes: 0,
-    totalViews: 0,
-    totalDownloads: 0
+    totalLikesOnUserPins: 0,
+    totalComments: 0
   });
   const [loading, setLoading] = useState(false);
+  const [deletingPin, setDeletingPin] = useState(null);
 
   // Загружаем данные профиля при открытии модала
   useEffect(() => {
@@ -43,6 +49,36 @@ const ProfileModal = ({ isOpen, onClose }) => {
       console.error("Error loading profile data:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeletePin = async (pinId) => {
+    if (!address) return;
+    
+    try {
+      setDeletingPin(pinId);
+      
+      const response = await axios.delete(`${API}/pins/${pinId}`, {
+        data: { owner: address }
+      });
+      
+      if (response.data.success) {
+        // Удаляем пин из списка
+        setUserPins(userPins.filter(pin => pin._id !== pinId));
+        
+        // Обновляем статистику
+        setStats(prev => ({
+          ...prev,
+          totalPins: prev.totalPins - 1
+        }));
+        
+        toast.success("Pin deleted successfully!");
+      }
+    } catch (error) {
+      console.error("Error deleting pin:", error);
+      toast.error(error.response?.data?.error || "Failed to delete pin");
+    } finally {
+      setDeletingPin(null);
     }
   };
 
@@ -86,146 +122,171 @@ const ProfileModal = ({ isOpen, onClose }) => {
               <div className="text-xs text-gray-500">Pins</div>
             </div>
             <div className="text-center">
+              <div className="text-2xl font-bold text-gray-900">{stats.totalLikesOnUserPins}</div>
+              <div className="text-xs text-gray-500">Likes Received</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-gray-900">{stats.totalComments}</div>
+              <div className="text-xs text-gray-500">Comments</div>
+            </div>
+            <div className="text-center">
               <div className="text-2xl font-bold text-gray-900">{stats.totalLikes}</div>
-              <div className="text-xs text-gray-500">Likes</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-gray-900">{stats.totalViews}</div>
-              <div className="text-xs text-gray-500">Views</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-gray-900">{stats.totalDownloads}</div>
-              <div className="text-xs text-gray-500">Downloads</div>
+              <div className="text-xs text-gray-500">Likes Given</div>
             </div>
           </div>
         </div>
 
         {/* Tabs */}
         <div className="px-6 py-4 border-b border-gray-100">
-          <div className="flex space-x-6">
+          <div className="flex space-x-8">
             <button
               onClick={() => setActiveTab('pins')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                activeTab === 'pins' 
-                  ? 'bg-[#51FED6] text-gray-900' 
-                  : 'text-gray-500 hover:text-gray-700'
+              className={`pb-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'pins'
+                  ? 'border-[#51FED6] text-[#51FED6]'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
-              My Pins
+              My Pins ({userPins.length})
             </button>
             <button
               onClick={() => setActiveTab('liked')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                activeTab === 'liked' 
-                  ? 'bg-[#51FED6] text-gray-900' 
-                  : 'text-gray-500 hover:text-gray-700'
+              className={`pb-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'liked'
+                  ? 'border-[#51FED6] text-[#51FED6]'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
-              Liked Pins
+              Liked Pins ({likedPins.length})
             </button>
           </div>
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[60vh]">
+        <div className="p-6">
           {loading ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#51FED6] mx-auto mb-4"></div>
               <p className="text-gray-500">Loading profile data...</p>
             </div>
           ) : activeTab === 'pins' ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="space-y-4">
               {userPins.length === 0 ? (
-                <div className="col-span-full text-center py-8">
-                  <div className="text-6xl mb-4">📌</div>
-                  <h3 className="text-xl font-medium text-gray-900">No pins yet</h3>
-                  <p className="text-gray-500">Start creating your first pin!</p>
+                <div className="text-center py-8">
+                  <div className="text-4xl mb-4">📌</div>
+                  <p className="text-gray-500">No pins yet</p>
+                  <p className="text-sm text-gray-400">Create your first NFT pin!</p>
                 </div>
               ) : (
-                userPins.map((pin) => (
-                  <div key={pin.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-                    <div className="aspect-square bg-gray-100 relative">
-                      {pin.image_url ? (
-                        <img
-                          src={pin.image_url}
-                          alt={pin.title}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-400">
-                          <div className="text-2xl">🖼️</div>
-                        </div>
-                      )}
-                      {pin.for_sale && pin.price && (
-                        <div className="absolute top-2 right-2 bg-[#51FED6] text-gray-900 px-2 py-1 rounded-full text-xs font-bold">
-                          {pin.price} ETH
-                        </div>
-                      )}
-                    </div>
-                    <div className="p-3">
-                      <h3 className="font-medium text-gray-900 text-sm truncate">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {userPins.map((pin) => (
+                    <div key={pin._id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                      <div className="relative mb-3">
+                        {pin.image_url ? (
+                          <img
+                            src={pin.image_url}
+                            alt={pin.title}
+                            className="w-full h-32 object-cover rounded-lg"
+                          />
+                        ) : (
+                          <div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center">
+                            <span className="text-2xl">🖼️</span>
+                          </div>
+                        )}
+                        {pin.for_sale && (
+                          <div className="absolute top-2 right-2 bg-[#51FED6] text-gray-900 px-2 py-1 rounded-full text-xs font-bold">
+                            {pin.price} ETH
+                          </div>
+                        )}
+                      </div>
+                      
+                      <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2">
                         {pin.title}
                       </h3>
-                      <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
-                        <div className="flex items-center space-x-2">
-                          <Heart className="w-3 h-3" />
+                      
+                      <div className="flex items-center justify-between text-sm text-gray-500 mb-3">
+                        <div className="flex items-center space-x-1">
+                          <Heart className="w-4 h-4" />
                           <span>{pin.likes || 0}</span>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <Eye className="w-3 h-3" />
-                          <span>{pin.views || 0}</span>
+                        <div className="flex items-center space-x-1">
+                          <MessageCircle className="w-4 h-4" />
+                          <span>{pin.comments || 0}</span>
                         </div>
                       </div>
+                      
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleDeletePin(pin._id)}
+                          disabled={deletingPin === pin._id}
+                          className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 px-3 rounded text-sm font-medium transition-colors disabled:opacity-50"
+                        >
+                          {deletingPin === pin._id ? (
+                            <div className="flex items-center justify-center">
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                              Deleting...
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-center">
+                              <Trash2 className="w-4 h-4 mr-1" />
+                              Delete
+                            </div>
+                          )}
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="space-y-4">
               {likedPins.length === 0 ? (
-                <div className="col-span-full text-center py-8">
+                <div className="text-center py-8">
                   <Heart className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                   <p className="text-gray-500">No liked pins yet</p>
+                  <p className="text-sm text-gray-400">Like some pins to see them here!</p>
                 </div>
               ) : (
-                likedPins.map((pin) => (
-                  <div key={pin.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-                    <div className="aspect-square bg-gray-100 relative">
-                      {pin.image_url ? (
-                        <img
-                          src={pin.image_url}
-                          alt={pin.title}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-400">
-                          <div className="text-2xl">🖼️</div>
-                        </div>
-                      )}
-                      {pin.for_sale && pin.price && (
-                        <div className="absolute top-2 right-2 bg-[#51FED6] text-gray-900 px-2 py-1 rounded-full text-xs font-bold">
-                          {pin.price} ETH
-                        </div>
-                      )}
-                    </div>
-                    <div className="p-3">
-                      <h3 className="font-medium text-gray-900 text-sm truncate">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {likedPins.map((pin) => (
+                    <div key={pin._id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                      <div className="relative mb-3">
+                        {pin.image_url ? (
+                          <img
+                            src={pin.image_url}
+                            alt={pin.title}
+                            className="w-full h-32 object-cover rounded-lg"
+                          />
+                        ) : (
+                          <div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center">
+                            <span className="text-2xl">🖼️</span>
+                          </div>
+                        )}
+                        {pin.for_sale && (
+                          <div className="absolute top-2 right-2 bg-[#51FED6] text-gray-900 px-2 py-1 rounded-full text-xs font-bold">
+                            {pin.price} ETH
+                          </div>
+                        )}
+                      </div>
+                      
+                      <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2">
                         {pin.title}
                       </h3>
-                      <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
-                        <div className="flex items-center space-x-2">
-                          <Heart className="w-3 h-3" />
+                      
+                      <div className="flex items-center justify-between text-sm text-gray-500">
+                        <div className="flex items-center space-x-1">
+                          <Heart className="w-4 h-4 text-red-500" />
                           <span>{pin.likes || 0}</span>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <Eye className="w-3 h-3" />
-                          <span>{pin.views || 0}</span>
+                        <div className="flex items-center space-x-1">
+                          <MessageCircle className="w-4 h-4" />
+                          <span>{pin.comments || 0}</span>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
             </div>
           )}

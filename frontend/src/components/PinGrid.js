@@ -13,8 +13,13 @@ const PinGrid = ({ pins, onPinClick, currentWallet }) => {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-gray-500">
         <div className="text-6xl mb-4">📌</div>
-        <h3 className="text-xl font-medium">No pins yet</h3>
-        <p>Be the first to create an NFT pin!</p>
+        <h3 className="text-xl font-medium">No NFT pins yet</h3>
+        <p className="text-center mb-4">Connect your wallet and create the first NFT pin!</p>
+        <div className="text-sm text-gray-400 text-center">
+          <p>• Upload your image to Irys</p>
+          <p>• Mint as NFT on Arbitrum</p>
+          <p>• Sell or collect unique digital art</p>
+        </div>
       </div>
     );
   }
@@ -28,7 +33,7 @@ const PinGrid = ({ pins, onPinClick, currentWallet }) => {
       >
         {pins.map((pin) => (
           <PinCard
-            key={pin.id}
+            key={pin._id || pin.id}
             pin={pin}
             onClick={() => onPinClick(pin)}
             isOwner={pin.owner === currentWallet}
@@ -49,7 +54,7 @@ const PinCard = ({ pin, onClick, isOwner }) => {
         {pin.image_url ? (
           <div className="aspect-square overflow-hidden">
             <img
-              src={pin.image_url}
+              src={`${pin.image_url}?t=${Date.now()}&id=${pin._id || pin.id}`}
               alt={pin.title}
               className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
               loading="lazy"
@@ -83,6 +88,11 @@ const PinCard = ({ pin, onClick, isOwner }) => {
             Owned
           </div>
         )}
+
+        {/* NFT badge - теперь все пины реальные NFT */}
+        <div className="absolute bottom-2 left-2 bg-green-500 text-white px-2 py-1 rounded-full text-xs font-bold">
+          NFT
+        </div>
       </div>
 
       <div className="p-4">

@@ -20,7 +20,8 @@ const createWalletConnectProvider = () => {
       url: window.location.origin,
       icons: ["https://your-app-icon.png"] // Добавьте иконку вашего приложения
     },
-    infuraId: "762f3049a4ce44d4887f9ba4eb411a23"
+    infuraId: "762f3049a4ce44d4887f9ba4eb411a23",
+    chainId: 42161 // Arbitrum One
   });
 };
 
@@ -59,25 +60,8 @@ export default function EthereumWalletProvider({ children }) {
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    // Очищаем предыдущие подключения при загрузке
-    const clearPreviousConnections = async () => {
-      if (typeof window.ethereum !== 'undefined') {
-        try {
-          // Пытаемся отключить все разрешения
-          await window.ethereum.request({ 
-            method: 'wallet_revokePermissions', 
-            params: [{ eth_accounts: {} }] 
-          });
-        } catch (error) {
-          console.log("Clear previous connections failed:", error);
-        }
-      }
-    };
-    
-    clearPreviousConnections();
-    
     web3Modal = new Web3Modal({
-      cacheProvider: false, // Отключаем кэширование для предотвращения путаницы
+      cacheProvider: true, // Включаем кэширование для сохранения состояния
       providerOptions,
       theme: "light",
       accentColor: "red",
@@ -85,7 +69,170 @@ export default function EthereumWalletProvider({ children }) {
       disableInjectedProvider: false,
       network: "arbitrum"
     });
-    // Убираем автоматическое подключение к кэшированному провайдеру
+
+    // Автоматически восстанавливаем подключение при загрузке
+    const restoreConnection = async () => {
+      try {
+        // Проверяем, есть ли сохраненный провайдер в Web3Modal
+        if (web3Modal.cachedProvider) {
+          console.log("Restoring cached provider connection...");
+          
+          // Проверяем, подключен ли MetaMask
+          if (typeof window.ethereum !== 'undefined' && window.ethereum.isConnected()) {
+            try {
+              // Запрашиваем аккаунты
+              const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+              if (accounts && accounts.length > 0) {
+                console.log("MetaMask is connected with accounts:", accounts);
+                
+                const instance = await web3Modal.connect();
+                const ethersProvider = new ethers.providers.Web3Provider(instance);
+                const signer = ethersProvider.getSigner();
+                const address = await signer.getAddress();
+                
+                setProvider(ethersProvider);
+                setSigner(signer);
+                setAddress(address);
+                setIsConnected(true);
+                console.log("Connection restored successfully");
+                return;
+              }
+            } catch (error) {
+              console.log("MetaMask connection check failed:", error);
+            }
+          }
+          
+          // Если MetaMask не подключен, пытаемся восстановить через Web3Modal
+          const instance = await web3Modal.connect();
+          const ethersProvider = new ethers.providers.Web3Provider(instance);
+          const signer = ethersProvider.getSigner();
+          const address = await signer.getAddress();
+          
+          setProvider(ethersProvider);
+          setSigner(signer);
+          setAddress(address);
+          setIsConnected(true);
+          console.log("Connection restored successfully via Web3Modal");
+        } else {
+          // Проверяем localStorage для дополнительной проверки
+          const savedWalletType = localStorage.getItem('connectedWalletType');
+          const savedAddress = localStorage.getItem('walletAddress');
+          
+          if (savedWalletType && savedAddress && typeof window.ethereum !== 'undefined') {
+            console.log("Found saved wallet connection in localStorage");
+            
+            try {
+              // Проверяем, подключен ли MetaMask
+              const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+              if (accounts && accounts.length > 0 && accounts[0].toLowerCase() === savedAddress.toLowerCase()) {
+                console.log("MetaMask is connected with saved account");
+                
+                const provider = new ethers.providers.Web3Provider(window.ethereum);
+                const signer = provider.getSigner();
+                const address = await signer.getAddress();
+                
+                setProvider(provider);
+                setSigner(signer);
+                setAddress(address);
+                setIsConnected(true);
+                console.log("Connection restored from localStorage");
+                return;
+              }
+            } catch (error) {
+              console.log("Failed to restore from localStorage:", error);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Failed to restore connection:", error);
+        // Очищаем кэш если восстановление не удалось
+        try {
+          await web3Modal.clearCachedProvider();
+          localStorage.removeItem('connectedWalletType');
+          localStorage.removeItem('walletAddress');
+        } catch (clearError) {
+          console.error("Failed to clear cached provider:", clearError);
+        }
+      }
+    };
+
+    // Добавляем небольшую задержку для стабильности
+    setTimeout(restoreConnection, 100);
+
+    // Добавляем слушатели событий MetaMask
+    const handleAccountsChanged = async (accounts) => {
+      console.log("Accounts changed:", accounts);
+      if (accounts.length === 0) {
+        // Пользователь отключил кошелек
+        setProvider(null);
+        setSigner(null);
+        setAddress(null);
+        setIsConnected(false);
+        localStorage.removeItem('connectedWalletType');
+        localStorage.removeItem('walletAddress');
+      } else {
+        // Обновляем адрес
+        setAddress(accounts[0]);
+        localStorage.setItem('walletAddress', accounts[0]);
+      }
+    };
+
+    const handleChainChanged = () => {
+      // Перезагружаем страницу при смене сети
+      window.location.reload();
+    };
+
+    const handleConnect = async (connectInfo) => {
+      console.log("Wallet connected:", connectInfo);
+      // Обновляем состояние подключения
+      if (web3Modal.cachedProvider) {
+        try {
+          const instance = await web3Modal.connect();
+          const ethersProvider = new ethers.providers.Web3Provider(instance);
+          const signer = ethersProvider.getSigner();
+          const address = await signer.getAddress();
+          
+          setProvider(ethersProvider);
+          setSigner(signer);
+          setAddress(address);
+          setIsConnected(true);
+          
+          // Сохраняем информацию о подключении
+          localStorage.setItem('connectedWalletType', 'metamask');
+          localStorage.setItem('walletAddress', address);
+        } catch (error) {
+          console.error("Failed to restore connection on connect:", error);
+        }
+      }
+    };
+
+    const handleDisconnect = () => {
+      console.log("Wallet disconnected");
+      setProvider(null);
+      setSigner(null);
+      setAddress(null);
+      setIsConnected(false);
+      localStorage.removeItem('connectedWalletType');
+      localStorage.removeItem('walletAddress');
+    };
+
+    // Добавляем слушатели событий
+    if (typeof window.ethereum !== 'undefined') {
+      window.ethereum.on('accountsChanged', handleAccountsChanged);
+      window.ethereum.on('chainChanged', handleChainChanged);
+      window.ethereum.on('connect', handleConnect);
+      window.ethereum.on('disconnect', handleDisconnect);
+    }
+
+    // Очистка слушателей при размонтировании
+    return () => {
+      if (typeof window.ethereum !== 'undefined') {
+        window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
+        window.ethereum.removeListener('chainChanged', handleChainChanged);
+        window.ethereum.removeListener('connect', handleConnect);
+        window.ethereum.removeListener('disconnect', handleDisconnect);
+      }
+    };
     // eslint-disable-next-line
   }, []);
 
@@ -97,8 +244,8 @@ export default function EthereumWalletProvider({ children }) {
       setAddress(null);
       setIsConnected(false);
       
-      // Очищаем кэш Web3Modal для принудительного нового подключения
-      if (web3Modal) {
+      // Очищаем кэш Web3Modal только если это принудительное новое подключение
+      if (web3Modal && !web3Modal.cachedProvider && walletType) {
         await web3Modal.clearCachedProvider();
       }
       
@@ -211,8 +358,9 @@ export default function EthereumWalletProvider({ children }) {
       setAddress(address);
       setIsConnected(true);
       
-      // Сохраняем тип подключенного кошелька
-      localStorage.setItem('connectedWalletType', walletType);
+      // Сохраняем информацию о подключении
+      localStorage.setItem('connectedWalletType', walletType || 'metamask');
+      localStorage.setItem('walletAddress', address);
     } catch (e) {
       console.error("Wallet connection error:", e);
       setIsConnected(false);
@@ -244,27 +392,15 @@ export default function EthereumWalletProvider({ children }) {
       }
     }
     
-    // Принудительно отключаем от ethereum
-    if (typeof window.ethereum !== 'undefined') {
-      try {
-        // Пытаемся отключить все разрешения
-        await window.ethereum.request({ 
-          method: 'wallet_revokePermissions', 
-          params: [{ eth_accounts: {} }] 
-        });
-      } catch (error) {
-        console.log("Revoke permissions failed:", error);
-      }
-    }
-    
     // Очищаем состояние
     setProvider(null);
     setSigner(null);
     setAddress(null);
     setIsConnected(false);
     
-    // Очищаем сохраненный тип кошелька
+    // Очищаем сохраненную информацию о кошельке
     localStorage.removeItem('connectedWalletType');
+    localStorage.removeItem('walletAddress');
     
     console.log("Wallet disconnected successfully");
   };

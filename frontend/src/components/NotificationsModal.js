@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { Bell, X, Heart, MessageCircle, User } from "lucide-react";
+import { Bell, X, Heart, MessageCircle, User, DollarSign } from "lucide-react";
 import { notificationsService } from "../services/notificationsService";
 import { useEthereumWallet } from "../contexts/EthereumWalletProvider";
 
-const NotificationsModal = ({ isOpen, onClose }) => {
+const NotificationsModal = ({ isOpen, onClose, onNotificationRead }) => {
   const { address } = useEthereumWallet();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -14,6 +14,8 @@ const NotificationsModal = ({ isOpen, onClose }) => {
         return <Heart className="w-4 h-4 text-red-500" />;
       case 'comment':
         return <MessageCircle className="w-4 h-4 text-blue-500" />;
+      case 'purchase':
+        return <DollarSign className="w-4 h-4 text-green-500" />;
       default:
         return <Bell className="w-4 h-4 text-gray-500" />;
     }
@@ -46,10 +48,31 @@ const NotificationsModal = ({ isOpen, onClose }) => {
     try {
       await notificationsService.markAsRead(id, address);
       setNotifications(notifications.map(notif => 
-        notif.id === id ? { ...notif, read: true } : notif
+        notif._id === id ? { ...notif, read: true } : notif
       ));
+      
+      // Вызываем callback для обновления счетчика
+      if (onNotificationRead) {
+        onNotificationRead();
+      }
     } catch (error) {
       console.error("Error marking notification as read:", error);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    if (!address) return;
+    
+    try {
+      await notificationsService.markAllAsRead(address);
+      setNotifications(notifications.map(notif => ({ ...notif, read: true })));
+      
+      // Вызываем callback для обновления счетчика
+      if (onNotificationRead) {
+        onNotificationRead();
+      }
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error);
     }
   };
 
@@ -98,35 +121,62 @@ const NotificationsModal = ({ isOpen, onClose }) => {
               <p className="text-gray-500">No notifications yet</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {notifications.map((notification) => (
-                <div 
-                  key={notification.id}
-                  className={`p-4 rounded-lg border transition-all duration-200 cursor-pointer ${
-                    notification.read 
-                      ? 'bg-gray-50 border-gray-200' 
-                      : 'bg-[#51FED6]/10 border-[#51FED6]/20'
-                  }`}
-                  onClick={() => markAsRead(notification.id)}
+            <div className="space-y-4">
+              {/* Mark all as read button */}
+              {notifications.some(n => !n.read) && (
+                <button
+                  onClick={markAllAsRead}
+                  className="w-full text-sm text-[#51FED6] hover:text-[#4AE8C7] font-medium mb-4"
                 >
-                  <div className="flex items-start space-x-3">
-                    <div className="flex-shrink-0 mt-1">
-                      {getNotificationIcon(notification.type)}
+                  Mark all as read
+                </button>
+              )}
+              
+              {/* Notifications list */}
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {notifications.map((notification) => (
+                  <div
+                    key={notification._id}
+                    className={`p-4 rounded-lg border transition-all duration-200 ${
+                      notification.read 
+                        ? 'bg-gray-50 border-gray-200' 
+                        : 'bg-white border-[#51FED6] shadow-sm'
+                    }`}
+                  >
+                    <div className="flex items-start space-x-3">
+                      <div className="flex-shrink-0 mt-1">
+                        {getNotificationIcon(notification.type)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-sm font-semibold text-gray-900">
+                            {notification.title}
+                          </h4>
+                          {!notification.read && (
+                            <div className="w-2 h-2 bg-[#51FED6] rounded-full"></div>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-600 mt-1">
+                          {notification.message}
+                        </p>
+                        <div className="flex items-center justify-between mt-2">
+                          <span className="text-xs text-gray-500">
+                            {new Date(notification.created_at).toLocaleDateString()}
+                          </span>
+                          {!notification.read && (
+                            <button
+                              onClick={() => markAsRead(notification._id)}
+                              className="text-xs text-[#51FED6] hover:text-[#4AE8C7] font-medium"
+                            >
+                              Mark as read
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900">
-                        {notification.message}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {notification.time}
-                      </p>
-                    </div>
-                    {!notification.read && (
-                      <div className="w-2 h-2 bg-[#51FED6] rounded-full flex-shrink-0 mt-2"></div>
-                    )}
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
         </div>

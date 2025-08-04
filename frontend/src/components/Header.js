@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { useEthereumWallet } from "../contexts/EthereumWalletProvider";
-import { Plus, Wallet, LogOut, User, Settings, Bell, Home } from "lucide-react";
+import { Plus, Wallet, LogOut, User, Bell, Home } from "lucide-react";
 import WalletConnectModal from "./WalletConnectModal";
 import NotificationsModal from "./NotificationsModal";
 import ProfileModal from "./ProfileModal";
 import { profileService } from "../services/profileService";
+import axios from "axios";
+
+const BACKEND_URL = "http://localhost:8001";
+const API = `${BACKEND_URL}/api`;
 
 const Header = ({ onCreateClick, isWalletConnected, onConnectWallet, walletAddress, onRoyaltyClick }) => {
   const { address, isConnected, connectWallet, disconnectWallet } = useEthereumWallet();
@@ -13,13 +17,24 @@ const Header = ({ onCreateClick, isWalletConnected, onConnectWallet, walletAddre
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [balance, setBalance] = useState(null);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
-  // Загружаем баланс при подключении кошелька
+  // Загружаем баланс и уведомления при подключении кошелька
   useEffect(() => {
     if (address && isConnected) {
       loadBalance();
+      loadUnreadNotifications();
     } else {
       setBalance(null);
+      setUnreadNotifications(0);
+    }
+  }, [address, isConnected]);
+
+  // Периодически обновляем уведомления
+  useEffect(() => {
+    if (address && isConnected) {
+      const interval = setInterval(loadUnreadNotifications, 30000); // каждые 30 секунд
+      return () => clearInterval(interval);
     }
   }, [address, isConnected]);
 
@@ -27,10 +42,23 @@ const Header = ({ onCreateClick, isWalletConnected, onConnectWallet, walletAddre
     if (!address) return;
     
     try {
-      const balanceData = await profileService.getUserBalance(address);
-      setBalance(balanceData);
+      const response = await axios.get(`${API}/user/balance/${address}`);
+      setBalance(response.data.balance);
     } catch (error) {
       console.error("Error loading balance:", error);
+      setBalance(null);
+    }
+  };
+
+  const loadUnreadNotifications = async () => {
+    if (!address) return;
+    
+    try {
+      const response = await axios.get(`${API}/notifications/${address}/unread-count`);
+      setUnreadNotifications(response.data.unreadCount);
+    } catch (error) {
+      console.error("Error loading unread notifications:", error);
+      setUnreadNotifications(0);
     }
   };
 
@@ -63,7 +91,7 @@ const Header = ({ onCreateClick, isWalletConnected, onConnectWallet, walletAddre
           {/* Logo */}
           <div className="flex items-center space-x-4">
             <div className="flex items-center">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg overflow-hidden">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden">
                 <img 
                   src="/images/logo.png" 
                   alt="IrysPinter Logo" 
@@ -92,10 +120,15 @@ const Header = ({ onCreateClick, isWalletConnected, onConnectWallet, walletAddre
                 {/* Notifications Button */}
                 <button
                   onClick={() => setShowNotificationsModal(true)}
-                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2.5 rounded-full font-semibold transition-all duration-200 flex items-center space-x-2 shadow-lg hover:shadow-xl"
+                  className="relative bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2.5 rounded-full font-semibold transition-all duration-200 flex items-center space-x-2 shadow-lg hover:shadow-xl"
                 >
                   <Bell className="w-4 h-4" />
                   <span>Notifications</span>
+                  {unreadNotifications > 0 && (
+                    <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                      {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                    </div>
+                  )}
                 </button>
 
                 {/* Profile Button */}
@@ -120,7 +153,7 @@ const Header = ({ onCreateClick, isWalletConnected, onConnectWallet, walletAddre
                       <span className="font-mono text-sm text-gray-700 max-w-[120px] truncate">
                         {formatAddress(address)}
                       </span>
-                      {balance && (
+                      {balance !== null && (
                         <span className="text-xs text-gray-500">
                           {balance} ETH
                         </span>
@@ -138,10 +171,6 @@ const Header = ({ onCreateClick, isWalletConnected, onConnectWallet, walletAddre
                       </div>
                       
                       <div className="py-1">
-                        <button className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2">
-                          <Settings className="w-4 h-4" />
-                          <span>Settings</span>
-                        </button>
                         <button 
                           onClick={handleDisconnect}
                           className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2"
@@ -177,6 +206,7 @@ const Header = ({ onCreateClick, isWalletConnected, onConnectWallet, walletAddre
       <NotificationsModal
         isOpen={showNotificationsModal}
         onClose={() => setShowNotificationsModal(false)}
+        onNotificationRead={loadUnreadNotifications}
       />
 
       {/* Profile Modal */}

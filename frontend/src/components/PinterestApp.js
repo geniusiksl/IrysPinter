@@ -46,13 +46,13 @@ const PinterestApp = () => {
   };
 
   const handlePinPurchased = (updatedPin) => {
-    setPins(pins.map(p => p.id === updatedPin.id ? updatedPin : p));
+    setPins(pins.map(p => p._id === updatedPin._id ? updatedPin : p));
     setSelectedPin(updatedPin);
     toast.success("NFT purchased successfully!");
   };
 
   const handlePinUpdated = (updatedPin) => {
-    setPins(pins.map(p => p.id === updatedPin.id ? updatedPin : p));
+    setPins(pins.map(p => p._id === updatedPin._id ? updatedPin : p));
     setSelectedPin(updatedPin);
   };
 
