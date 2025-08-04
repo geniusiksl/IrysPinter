@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_BASE_URL = "http://localhost:8001/api";
+const API_BASE_URL = "https://iryspinter.onrender.com/api";
 
 export const profileService = {
   // Получить пины пользователя
