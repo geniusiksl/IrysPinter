@@ -1,13 +1,14 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/iryspinter';
-
 const connectDB = async () => {
   try {
-    await mongoose.connect(MONGODB_URI, {
+    await mongoose.connect(process.env.MONGODB_URI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 5000, 
+      retryWrites: true,
+      w: 'majority'
     });
     console.log('MongoDB connected successfully to Atlas');
   } catch (err) {
@@ -16,4 +17,4 @@ const connectDB = async () => {
   }
 };
 
-module.exports = connectDB; 
+module.exports = connectDB;
