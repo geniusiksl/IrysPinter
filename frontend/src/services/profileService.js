@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_BASE_URL = "https://iryspinter.onrender.com/api";
+const API_BASE_URL = "http://localhost:8001/api";
 
 export const profileService = {
   // Получить пины пользователя
@@ -49,6 +49,28 @@ export const profileService = {
     } catch (error) {
       console.error("Error fetching user balance:", error);
       return null;
+    }
+  },
+
+  // Получить профиль пользователя
+  async getUserProfile(walletAddress) {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/users/${walletAddress}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+      return null;
+    }
+  },
+
+  // Обновить профиль пользователя
+  async updateUserProfile(walletAddress, profileData) {
+    try {
+      const response = await axios.put(`${API_BASE_URL}/users/${walletAddress}`, profileData);
+      return response.data;
+    } catch (error) {
+      console.error("Error updating user profile:", error);
+      throw error;
     }
   }
 }; 

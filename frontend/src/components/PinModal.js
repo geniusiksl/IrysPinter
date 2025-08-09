@@ -15,12 +15,11 @@ const PinModal = ({ pin, onClose, onPinPurchased, onPinUpdated, currentWallet })
   const [loading, setLoading] = useState(false);
   const [likeLoading, setLikeLoading] = useState(false);
   const [commentLoading, setCommentLoading] = useState(false);
-  const [listPrice, setListPrice] = useState("");
-  const { buyNFT, listNFT, delistNFT, checkNFTListing, uploadToIrys, isBuying, isSelling } = useIrys();
+
+  const { uploadToIrys, checkIrysBalance, fundIrysAccount } = useIrys();
   const { isConnected, address } = useEthereumWallet();
 
   const isOwner = pinData.owner === currentWallet;
-  const canBuy = pinData.for_sale && !isOwner && isConnected;
 
   useEffect(() => {
     setPinData(pin);
@@ -56,6 +55,22 @@ const PinModal = ({ pin, onClose, onPinPurchased, onPinUpdated, currentWallet })
     }
     try {
       setLikeLoading(true);
+      
+      // Проверяем баланс Irys перед загрузкой
+      const balance = await checkIrysBalance();
+      console.log(`Current Irys balance: ${balance} ETH`);
+      
+      // Пополняем аккаунт если баланс недостаточен
+      if (parseFloat(balance) < 0.001) {
+        console.log('Insufficient Irys balance, attempting to fund account...');
+        try {
+          await fundIrysAccount(0.001);
+          console.log('Irys account funded successfully');
+        } catch (fundError) {
+          console.error('Failed to fund Irys account:', fundError);
+          throw new Error(`Insufficient Irys balance (${balance} ETH) and failed to fund account: ${fundError.message}`);
+        }
+      }
       
       // Создаем данные лайка для Irys
       const likeData = {
@@ -144,170 +159,7 @@ const PinModal = ({ pin, onClose, onPinPurchased, onPinUpdated, currentWallet })
     }
   };
 
-  const handlePurchase = async () => {
-    if (!isConnected) {
-      toast.error("Please connect your wallet");
-      return;
-    }
-    
-    console.log("Pin data for purchase:", pinData);
-    console.log("Mint address:", pinData.mint_address);
-    console.log("Mint address type:", typeof pinData.mint_address);
-    
-    // Проверяем, что mint_address является валидным числом
-    let tokenId;
-    if (pinData.mint_address && pinData.mint_address !== null && !isNaN(pinData.mint_address)) {
-      tokenId = parseInt(pinData.mint_address);
-      console.log("Valid token ID:", tokenId);
-    } else {
-      console.error("Invalid mint_address:", pinData.mint_address);
-      toast.error("This NFT is not available for purchase. It may not be properly minted.");
-      return;
-    }
-    
-    try {
-      setLoading(true);
-      
-      // Проверяем статус листинга в смарт-контракте
-      const listingStatus = await checkNFTListing(tokenId);
-      console.log("Listing status:", listingStatus);
-      
-      if (!listingStatus.isListed) {
-        toast.error("This NFT is not listed for sale on the blockchain. The owner needs to list it first.");
-        return;
-      }
-      
-      // Проверяем соответствие цены
-      if (Math.abs(parseFloat(listingStatus.price) - parseFloat(pinData.price)) > 0.000001) {
-        toast.error(`Price mismatch. NFT is listed for ${listingStatus.price} ETH, but displayed price is ${pinData.price} ETH`);
-        return;
-      }
-      
-      // Вызов функции покупки NFT через контракт
-      const purchaseResult = await buyNFT(tokenId, pinData.price);
-      
-      if (purchaseResult.success) {
-        // Обновляем владельца в бэкенде
-        const updateResponse = await axios.put(`${API}/pins/${pinData._id}/transfer-ownership`, {
-          newOwner: address
-        });
-        
-        const updatedPin = updateResponse.data;
-        setPinData(updatedPin);
-        onPinPurchased(updatedPin);
-        
-        // Создаем уведомление о покупке для продавца
-        try {
-          await axios.post(`${API}/notifications`, {
-            user: pinData.owner,
-            type: 'purchase',
-            title: 'NFT Sold!',
-            message: `Your NFT "${pinData.title}" has been sold for ${pinData.price} ETH`,
-            pin_id: pinData._id,
-            buyer: address
-          });
-        } catch (notificationError) {
-          console.error("Failed to create purchase notification:", notificationError);
-        }
-        
-        toast.success("NFT purchased successfully!");
-      }
-    } catch (error) {
-      console.error("Error purchasing NFT:", error);
-      toast.error(error.message || "Failed to purchase NFT");
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  const handleSell = async () => {
-    if (!isConnected) {
-      toast.error("Please connect your wallet");
-      return;
-    }
-    if (!listPrice || parseFloat(listPrice) <= 0) {
-      toast.error("Please enter a valid price");
-      return;
-    }
-    
-    // Проверяем, что mint_address является валидным числом
-    let tokenId;
-    if (pinData.mint_address && pinData.mint_address !== null && !isNaN(pinData.mint_address)) {
-      tokenId = parseInt(pinData.mint_address);
-    } else {
-      console.error("Invalid mint_address:", pinData.mint_address);
-      toast.error("This NFT is not available for sale. It may not be properly minted.");
-      return;
-    }
-    
-    try {
-      setLoading(true);
-      
-      // Вызов функции выставления NFT на продажу через контракт
-      const sellResult = await listNFT(tokenId, listPrice);
-      
-      if (sellResult.success) {
-        // Обновляем статус в базе данных
-        const updateResponse = await axios.put(`${API}/pins/${pinData._id}`, {
-          for_sale: true,
-          price: listPrice
-        });
-        
-        const updatedPin = updateResponse.data;
-        setPinData(updatedPin);
-        onPinUpdated(updatedPin);
-        setListPrice(""); // Очищаем поле ввода
-        toast.success("NFT listed for sale!");
-      }
-    } catch (error) {
-      console.error("Error selling NFT:", error);
-      toast.error(error.message || "Failed to list NFT for sale");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDelist = async () => {
-    if (!isConnected) {
-      toast.error("Please connect your wallet");
-      return;
-    }
-    
-    // Проверяем, что mint_address является валидным числом
-    let tokenId;
-    if (pinData.mint_address && pinData.mint_address !== null && !isNaN(pinData.mint_address)) {
-      tokenId = parseInt(pinData.mint_address);
-    } else {
-      console.error("Invalid mint_address:", pinData.mint_address);
-      toast.error("This NFT is not available for delisting. It may not be properly minted.");
-      return;
-    }
-    
-    try {
-      setLoading(true);
-      
-      // Вызов функции снятия NFT с продажи через контракт
-      const delistResult = await delistNFT(tokenId);
-      
-      if (delistResult.success) {
-        // Обновляем статус в базе данных
-        const updateResponse = await axios.put(`${API}/pins/${pinData._id}`, {
-          for_sale: false,
-          price: null
-        });
-        
-        const updatedPin = updateResponse.data;
-        setPinData(updatedPin);
-        onPinUpdated(updatedPin);
-        toast.success("NFT delisted successfully!");
-      }
-    } catch (error) {
-      console.error("Error delisting NFT:", error);
-      toast.error(error.message || "Failed to delist NFT");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -379,7 +231,7 @@ const PinModal = ({ pin, onClose, onPinPurchased, onPinUpdated, currentWallet })
               <p className="text-gray-600 mb-4">{pinData.description}</p>
             )}
 
-            {/* NFT Info */}
+            {/* Pin Info */}
             <div className="bg-gray-50 rounded-lg p-4 mb-4">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-medium text-gray-700">Owner:</span>
@@ -387,63 +239,10 @@ const PinModal = ({ pin, onClose, onPinPurchased, onPinUpdated, currentWallet })
                   {pinData.owner === currentWallet ? "You" : `${pinData.owner.slice(0, 6)}...${pinData.owner.slice(-4)}`}
                 </span>
               </div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-gray-700">Token ID:</span>
-                <span className="text-sm font-mono text-gray-900">{pinData.mint_address}</span>
-              </div>
-              {pinData.for_sale && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-700">Price:</span>
-                  <span className="text-sm font-bold text-[#51FED6]">{pinData.price} ETH</span>
-                </div>
-              )}
+
             </div>
 
-            {/* Action Buttons */}
-            <div className="space-y-4 mb-6">
-              {canBuy && (
-                <button
-                  onClick={handlePurchase}
-                  disabled={loading || isBuying}
-                  className="w-full bg-[#51FED6] hover:bg-[#4AE8C7] text-gray-900 py-3 px-4 rounded-lg font-semibold transition-all duration-200 disabled:opacity-50"
-                >
-                  {loading || isBuying ? "Buying..." : `Buy for ${pinData.price} ETH`}
-                </button>
-              )}
-              
-              {isOwner && pinData.for_sale && (
-                <button
-                  onClick={handleDelist}
-                  disabled={loading || isSelling}
-                  className="w-full bg-gray-500 hover:bg-gray-600 text-white py-3 px-4 rounded-lg font-semibold transition-all duration-200 disabled:opacity-50"
-                >
-                  {loading || isSelling ? "Delisting..." : "Delist"}
-                </button>
-              )}
-              
-              {isOwner && !pinData.for_sale && (
-                <div className="space-y-3">
-                  <div className="flex space-x-2">
-                    <input
-                      type="number"
-                      value={listPrice}
-                      onChange={(e) => setListPrice(e.target.value)}
-                      step="0.000001"
-                      min="0.000001"
-                      placeholder="Enter price in ETH"
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#51FED6]"
-                    />
-                    <button
-                      onClick={handleSell}
-                      disabled={loading || isSelling || !listPrice || parseFloat(listPrice) <= 0}
-                      className="px-6 py-2 bg-[#51FED6] hover:bg-[#4AE8C7] text-gray-900 rounded-lg font-semibold transition-all duration-200 disabled:opacity-50"
-                    >
-                      {loading || isSelling ? "Listing..." : "List"}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+
 
 
 

@@ -3,13 +3,13 @@ import Header from "./Header";
 import PinGrid from "./PinGrid";
 import CreatePinModal from "./CreatePinModal";
 import PinModal from "./PinModal";
-
+import UserProfileModal from "./UserProfileModal";
 
 import axios from "axios";
 import toast from "react-hot-toast";
 import { useEthereumWallet } from "../contexts/EthereumWalletProvider";
 
-const BACKEND_URL = "https://iryspinter.onrender.com";
+const BACKEND_URL = "http://localhost:8001";
 const API = `${BACKEND_URL}/api`;
 
 const PinterestApp = () => {
@@ -17,6 +17,8 @@ const PinterestApp = () => {
   const [pins, setPins] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedPin, setSelectedPin] = useState(null);
+  const [showUserProfileModal, setShowUserProfileModal] = useState(false);
+  const [selectedUserAddress, setSelectedUserAddress] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -45,15 +47,14 @@ const PinterestApp = () => {
     setSelectedPin(pin);
   };
 
-  const handlePinPurchased = (updatedPin) => {
-    setPins(pins.map(p => p._id === updatedPin._id ? updatedPin : p));
-    setSelectedPin(updatedPin);
-    toast.success("NFT purchased successfully!");
-  };
-
   const handlePinUpdated = (updatedPin) => {
     setPins(pins.map(p => p._id === updatedPin._id ? updatedPin : p));
     setSelectedPin(updatedPin);
+  };
+
+  const handleUserClick = (userAddress) => {
+    setSelectedUserAddress(userAddress);
+    setShowUserProfileModal(true);
   };
 
   if (loading) {
@@ -82,7 +83,7 @@ const PinterestApp = () => {
             IrysPinter
           </h1>
           <p className="text-lg text-gray-600 mb-4">
-            Decentralized Pinterest on Irys - Create, Buy & Sell NFT Pins
+            Decentralized Pinterest on Irys - Share & Connect
           </p>
           <div className="inline-flex items-center bg-[#51FED6] text-gray-900 px-4 py-2 rounded-full text-sm font-medium">
             <span className="w-2 h-2 bg-gray-900 rounded-full mr-2 animate-pulse"></span>
@@ -94,6 +95,7 @@ const PinterestApp = () => {
       <PinGrid
         pins={pins}
         onPinClick={handlePinClick}
+        onUserClick={handleUserClick}
         currentWallet={address}
       />
       
@@ -109,17 +111,18 @@ const PinterestApp = () => {
         <PinModal
           pin={selectedPin}
           onClose={() => setSelectedPin(null)}
-          onPinPurchased={handlePinPurchased}
           onPinUpdated={handlePinUpdated}
           currentWallet={address}
         />
       )}
-      
 
-
-      {/* Status Components */}
-      
-      
+      {showUserProfileModal && (
+        <UserProfileModal
+          isOpen={showUserProfileModal}
+          onClose={() => setShowUserProfileModal(false)}
+          userAddress={selectedUserAddress}
+        />
+      )}
     </div>
   );
 };

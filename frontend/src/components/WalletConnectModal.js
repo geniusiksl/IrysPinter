@@ -120,7 +120,7 @@ const WalletConnectModal = ({ isOpen, onClose }) => {
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-900">Connect Wallet</h2>
-              <p className="text-sm text-gray-600">Choose your wallet to start creating NFTs</p>
+              <p className="text-sm text-gray-600">Choose your wallet to connect</p>
             </div>
           </div>
         </div>
@@ -198,4 +198,4 @@ const WalletConnectModal = ({ isOpen, onClose }) => {
   );
 };
 
-export default WalletConnectModal; 
+export default WalletConnectModal;

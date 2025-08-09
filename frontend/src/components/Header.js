@@ -1,23 +1,30 @@
 import React, { useState, useEffect } from "react";
 import { useEthereumWallet } from "../contexts/EthereumWalletProvider";
-import { Plus, Wallet, LogOut, User, Bell, Home } from "lucide-react";
+import { Plus, Wallet, LogOut, User, Bell, Home, MessageCircle, Search } from "lucide-react";
 import WalletConnectModal from "./WalletConnectModal";
 import NotificationsModal from "./NotificationsModal";
 import ProfileModal from "./ProfileModal";
+import MessengerModal from "./MessengerModal";
+import UserProfileModal from "./UserProfileModal";
 import { profileService } from "../services/profileService";
 import axios from "axios";
+import toast from "react-hot-toast";
 
-const BACKEND_URL = "https://iryspinter.onrender.com";
+const BACKEND_URL = "http://localhost:8001";
 const API = `${BACKEND_URL}/api`;
 
-const Header = ({ onCreateClick, isWalletConnected, onConnectWallet, walletAddress, onRoyaltyClick }) => {
+const Header = ({ onCreateClick, isWalletConnected, onConnectWallet, walletAddress }) => {
   const { address, isConnected, connectWallet, disconnectWallet } = useEthereumWallet();
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showMessengerModal, setShowMessengerModal] = useState(false);
+  const [showUserProfileModal, setShowUserProfileModal] = useState(false);
+  const [selectedUserAddress, setSelectedUserAddress] = useState(null);
   const [balance, setBalance] = useState(null);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Загружаем баланс и уведомления при подключении кошелька
   useEffect(() => {
@@ -84,11 +91,21 @@ const Header = ({ onCreateClick, isWalletConnected, onConnectWallet, walletAddre
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   };
 
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      // Здесь можно добавить логику поиска
+      console.log("Searching for:", searchQuery);
+      // Можно добавить навигацию к результатам поиска или открыть модал с результатами
+      toast.success(`Searching for: ${searchQuery}`);
+    }
+  };
+
   return (
     <>
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-200 px-4 py-3">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          {/* Logo */}
+          {/* Logo - Left */}
           <div className="flex items-center space-x-4">
             <div className="flex items-center">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden">
@@ -104,8 +121,30 @@ const Header = ({ onCreateClick, isWalletConnected, onConnectWallet, walletAddre
             </div>
           </div>
 
-          {/* Actions */}
-          <div className="flex items-center space-x-3">
+          {/* Search Bar - Center */}
+          <div className="flex-1 max-w-2xl mx-8">
+            <form onSubmit={handleSearch} className="relative">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search pins, users, or topics..."
+                  className="w-full pl-12 pr-20 py-3 bg-gray-50 border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-[#51FED6] focus:border-[#51FED6] focus:bg-white transition-all duration-200 text-gray-900 placeholder-gray-500"
+                />
+                <button
+                  type="submit"
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-[#51FED6] hover:bg-[#4AE8C7] text-gray-900 px-4 py-1.5 rounded-full font-medium transition-all duration-200 text-sm"
+                >
+                  Search
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* Actions - Right */}
+          <div className="flex items-center space-x-3 ml-8">
             {isConnected ? (
               <>
                 {/* Create Pin Button */}
@@ -115,6 +154,15 @@ const Header = ({ onCreateClick, isWalletConnected, onConnectWallet, walletAddre
                 >
                   <Plus className="w-5 h-5" />
                   <span>Create Pin</span>
+                </button>
+
+                {/* Messenger Button */}
+                <button
+                  onClick={() => setShowMessengerModal(true)}
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2.5 rounded-full font-semibold transition-all duration-200 flex items-center space-x-2 shadow-lg hover:shadow-xl"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  <span>Messages</span>
                 </button>
 
                 {/* Notifications Button */}
@@ -215,7 +263,18 @@ const Header = ({ onCreateClick, isWalletConnected, onConnectWallet, walletAddre
         onClose={() => setShowProfileModal(false)}
       />
 
- 
+      {/* Messenger Modal */}
+      <MessengerModal
+        isOpen={showMessengerModal}
+        onClose={() => setShowMessengerModal(false)}
+      />
+
+      {/* User Profile Modal */}
+      <UserProfileModal
+        isOpen={showUserProfileModal}
+        onClose={() => setShowUserProfileModal(false)}
+        userAddress={selectedUserAddress}
+      />
     </>
   );
 };
