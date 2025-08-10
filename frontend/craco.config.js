@@ -19,19 +19,21 @@ module.exports = {
           os: require.resolve('os-browserify/browser'),
           path: require.resolve('path-browserify'),
           process: require.resolve('process/browser.js'),
-          util: require.resolve('util/'),
+          util: path.resolve(__dirname, 'src/polyfills/util-polyfill.js'),
           assert: require.resolve('assert/'),
           vm: require.resolve('vm-browserify'),
           fs: path.resolve(__dirname, 'src/polyfills/fs-polyfill.js'),
           'fs/constants': path.resolve(__dirname, 'src/polyfills/constants-polyfill.js'),
           constants: path.resolve(__dirname, 'src/polyfills/constants-polyfill.js'),
-          errno: path.resolve(__dirname, 'src/polyfills/constants-polyfill.js'),
+          errno: path.resolve(__dirname, 'src/polyfills/errno-polyfill.js'),
           net: false,
           tls: false,
           readline: false,
           tty: false,
           child_process: false,
           'stream/promises': path.resolve(__dirname, 'src/polyfills/stream-promises-polyfill.js'),
+          tmp: path.resolve(__dirname, 'src/polyfills/tmp-polyfill.js'),
+          'tmp-promise': path.resolve(__dirname, 'src/polyfills/tmp-promise-polyfill.js'),
         },
       };
       console.log('webpackConfig.resolve.fallback:', webpackConfig.resolve.fallback);
@@ -65,8 +67,20 @@ module.exports = {
         ),
         new webpack.NormalModuleReplacementPlugin(
            /node:util/,
-           require.resolve('util')
+           path.resolve(__dirname, 'src/polyfills/util-polyfill.js')
          ),
+        new webpack.NormalModuleReplacementPlugin(
+          /^tmp$/,
+          path.resolve(__dirname, 'src/polyfills/tmp-polyfill.js')
+        ),
+        new webpack.NormalModuleReplacementPlugin(
+          /^tmp-promise$/,
+          path.resolve(__dirname, 'src/polyfills/tmp-promise-polyfill.js')
+        ),
+        new webpack.NormalModuleReplacementPlugin(
+          /@irys\/bundles/,
+          path.resolve(__dirname, 'src/polyfills/irys-bundles-polyfill.js')
+        ),
       ];
 
       // Handle node: scheme imports
@@ -75,11 +89,13 @@ module.exports = {
         'node:crypto': path.resolve(__dirname, 'src/polyfills/crypto-polyfill.js'),
         'node:stream': 'stream-browserify',
         'node:buffer': 'buffer',
-        'node:util': 'util',
+        'node:util': path.resolve(__dirname, 'src/polyfills/util-polyfill.js'),
         'node:path': 'path-browserify',
         'node:os': 'os-browserify/browser',
         'node:process': 'process/browser.js',
         'stream/promises': path.resolve(__dirname, 'src/polyfills/stream-promises-polyfill.js'),
+        'tmp': path.resolve(__dirname, 'src/polyfills/tmp-polyfill.js'),
+        'tmp-promise': path.resolve(__dirname, 'src/polyfills/tmp-promise-polyfill.js'),
       };
 
       // Ignore specific warnings

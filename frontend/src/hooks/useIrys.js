@@ -1,8 +1,28 @@
 import { useEthereumWallet } from '../contexts/EthereumWalletProvider';
 import { useState, useCallback } from 'react';
 import { ethers } from 'ethers';
-import { Uploader } from '@irys/upload';
-import { Ethereum } from '@irys/upload-ethereum';
+
+// Динамический импорт Irys модулей для избежания ошибок при загрузке
+let Uploader, Ethereum;
+try {
+  const irysUpload = require('@irys/upload');
+  const irysEthereum = require('@irys/upload-ethereum');
+  Uploader = irysUpload.Uploader;
+  Ethereum = irysEthereum.Ethereum;
+} catch (error) {
+  console.warn('Irys modules failed to load:', error.message);
+  // Создаем заглушки для Irys классов
+  Uploader = class MockUploader {
+    constructor() {
+      console.warn('Using mock Uploader - Irys functionality disabled');
+    }
+  };
+  Ethereum = class MockEthereum {
+    constructor() {
+      console.warn('Using mock Ethereum - Irys functionality disabled');
+    }
+  };
+}
 
 export const useIrys = () => {
   const { signer, address } = useEthereumWallet();
