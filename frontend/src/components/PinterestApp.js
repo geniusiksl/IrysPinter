@@ -90,10 +90,18 @@ const PinterestApp = () => {
     setSearchQuery(query);
   };
 
+  const handleGoHome = () => {
+    setSearchQuery("");
+    setSelectedPin(null);
+    setShowUserProfileModal(false);
+    // Прокручиваем страницу вверх
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
+      <div className="min-h-screen bg-transparent flex items-center justify-center">
+        <div className="text-center bg-white/80 backdrop-blur-sm rounded-2xl p-8 shadow-lg border border-white/20">
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-[#51FED6] mx-auto mb-4"></div>
           <p className="text-gray-600 font-medium">Loading IrysPinter...</p>
         </div>
@@ -102,7 +110,7 @@ const PinterestApp = () => {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-transparent">
       <Header
         onCreateClick={() => setShowCreateModal(true)}
         isWalletConnected={!!address}
@@ -110,45 +118,34 @@ const PinterestApp = () => {
         walletAddress={address}
         onSearch={handleSearch}
         onPinClick={handlePinClick}
+        onLogoClick={handleGoHome}
       />
       
-      <div className="py-6">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            IrysPinter
-          </h1>
-          <p className="text-lg text-gray-600 mb-4">
-            Decentralized Pinterest on Irys - Share & Connect
+      {searchQuery && (
+        <div className={`py-4 text-center bg-white/60 backdrop-blur-sm border-b border-white/30 ${isConnected ? 'mr-20' : ''}`}>
+          <p className="text-sm text-gray-700">
+            Showing results for: <span className="font-semibold">"{searchQuery}"</span>
+            <button 
+              onClick={() => setSearchQuery("")}
+              className="ml-2 text-[#51FED6] hover:underline font-medium"
+            >
+              Clear search
+            </button>
           </p>
-          <div className="inline-flex items-center bg-[#51FED6] text-gray-900 px-4 py-2 rounded-full text-sm font-medium">
-            <span className="w-2 h-2 bg-gray-900 rounded-full mr-2 animate-pulse"></span>
-            {address ? `Wallet: ${address.slice(0, 6)}...${address.slice(-4)}` : "Wallet not connected"}
-          </div>
-          {searchQuery && (
-            <div className="mt-4">
-              <p className="text-sm text-gray-600">
-                Showing results for: <span className="font-semibold">"{searchQuery}"</span>
-                <button 
-                  onClick={() => setSearchQuery("")}
-                  className="ml-2 text-[#51FED6] hover:underline"
-                >
-                  Clear search
-                </button>
-              </p>
-              <p className="text-xs text-gray-500 mt-1">
-                Found {filteredPins.length} pin{filteredPins.length !== 1 ? 's' : ''}
-              </p>
-            </div>
-          )}
+          <p className="text-xs text-gray-600 mt-1">
+            Found {filteredPins.length} pin{filteredPins.length !== 1 ? 's' : ''}
+          </p>
         </div>
-      </div>
+      )}
       
-      <PinGrid
-        pins={filteredPins}
-        onPinClick={handlePinClick}
-        onUserClick={handleUserClick}
-        currentWallet={address}
-      />
+      <div className={`${isConnected ? 'mr-20' : ''}`}>
+        <PinGrid
+          pins={filteredPins}
+          onPinClick={handlePinClick}
+          onUserClick={handleUserClick}
+          currentWallet={address}
+        />
+      </div>
       
       {showCreateModal && (
         <CreatePinModal

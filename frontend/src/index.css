@@ -167,6 +167,89 @@ body {
         "Helvetica Neue", sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* Красивый фон с геометрической сеткой */
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 25%, #ffffff 50%, #f8fafc 75%, #f1f5f9 100%);
+    background-size: 400% 400%;
+    animation: gradientShift 15s ease infinite;
+    position: relative;
+}
+
+/* Анимация плавного перехода градиента */
+@keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* Геометрическая сетка кубиков */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: 
+        /* Основные кубики */
+        repeating-linear-gradient(
+            45deg,
+            transparent,
+            transparent 10px,
+            rgba(148, 163, 184, 0.03) 10px,
+            rgba(148, 163, 184, 0.03) 20px
+        ),
+        repeating-linear-gradient(
+            -45deg,
+            transparent,
+            transparent 10px,
+            rgba(148, 163, 184, 0.03) 10px,
+            rgba(148, 163, 184, 0.03) 20px
+        ),
+        /* Дополнительные линии для объема */
+        repeating-linear-gradient(
+            90deg,
+            transparent,
+            transparent 40px,
+            rgba(148, 163, 184, 0.02) 40px,
+            rgba(148, 163, 184, 0.02) 42px
+        ),
+        repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 40px,
+            rgba(148, 163, 184, 0.02) 40px,
+            rgba(148, 163, 184, 0.02) 42px
+        );
+    background-size: 40px 40px, 40px 40px, 80px 80px, 80px 80px;
+    background-position: 0 0, 0 0, 0 0, 0 0;
+    pointer-events: none;
+    z-index: -2;
+    opacity: 0.6;
+}
+
+/* Дополнительный слой для создания эффекта глубины */
+body::after {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(
+        ellipse at center,
+        transparent 0%,
+        rgba(255, 255, 255, 0.1) 50%,
+        rgba(148, 163, 184, 0.05) 100%
+    );
+    pointer-events: none;
+    z-index: -1;
+    animation: breathe 8s ease-in-out infinite;
+}
+
+/* Анимация дыхания для дополнительного слоя */
+@keyframes breathe {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.6; }
 }
 
 code {

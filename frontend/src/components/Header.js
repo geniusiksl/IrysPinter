@@ -13,7 +13,7 @@ import toast from "react-hot-toast";
 const BACKEND_URL = "http://localhost:8001";
 const API = `${BACKEND_URL}/api`;
 
-const Header = ({ onCreateClick, isWalletConnected, onConnectWallet, walletAddress, onSearch, onPinClick }) => {
+const Header = ({ onCreateClick, isWalletConnected, onConnectWallet, walletAddress, onSearch, onPinClick, onLogoClick }) => {
   const { address, isConnected, connectWallet, disconnectWallet } = useEthereumWallet();
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -100,22 +100,26 @@ const Header = ({ onCreateClick, isWalletConnected, onConnectWallet, walletAddre
 
   return (
     <>
-      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-200 px-4 py-3">
+      <header className="sticky top-0 z-40 bg-gradient-to-r from-white/90 via-white/95 to-white/90 backdrop-blur-xl border-b border-gray-200/50 px-4 py-4 shadow-lg shadow-gray-900/5">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           {/* Logo - Left */}
           <div className="flex items-center space-x-4">
-            <div className="flex items-center">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden">
+            <button 
+              onClick={onLogoClick}
+              className="flex items-center cursor-pointer hover:opacity-80 transition-all duration-200 transform hover:scale-105 group"
+              title="Go to Home"
+            >
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden group-hover:shadow-lg transition-shadow duration-200">
                 <img 
                   src="/images/logo.png" 
                   alt="IrysPinter Logo" 
                   className="w-full h-full object-cover"
                 />
               </div>
-              <span className="ml-3 text-xl font-bold text-gray-900">
+              <span className="ml-3 text-xl font-bold text-gray-900 group-hover:text-[#51FED6] transition-colors duration-200">
                 IrysPinter
               </span>
-            </div>
+            </button>
           </div>
 
           {/* Search Bar - Center */}
@@ -141,50 +145,9 @@ const Header = ({ onCreateClick, isWalletConnected, onConnectWallet, walletAddre
           </div>
 
           {/* Actions - Right */}
-          <div className="flex items-center space-x-3 ml-8">
+          <div className="flex items-center space-x-4 ml-8">
             {isConnected ? (
               <>
-                {/* Create Pin Button */}
-                <button
-                  onClick={onCreateClick}
-                  className="bg-[#51FED6] hover:bg-[#4AE8C7] text-gray-900 px-6 py-2.5 rounded-full font-semibold transition-all duration-200 flex items-center space-x-2 shadow-lg hover:shadow-xl transform hover:scale-105"
-                >
-                  <Plus className="w-5 h-5" />
-                  <span>Create Pin</span>
-                </button>
-
-                {/* Messenger Button */}
-                <button
-                  onClick={() => setShowMessengerModal(true)}
-                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2.5 rounded-full font-semibold transition-all duration-200 flex items-center space-x-2 shadow-lg hover:shadow-xl"
-                >
-                  <MessageCircle className="w-4 h-4" />
-                  <span>Messages</span>
-                </button>
-
-                {/* Notifications Button */}
-                <button
-                  onClick={() => setShowNotificationsModal(true)}
-                  className="relative bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2.5 rounded-full font-semibold transition-all duration-200 flex items-center space-x-2 shadow-lg hover:shadow-xl"
-                >
-                  <Bell className="w-4 h-4" />
-                  <span>Notifications</span>
-                  {unreadNotifications > 0 && (
-                    <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
-                      {unreadNotifications > 99 ? '99+' : unreadNotifications}
-                    </div>
-                  )}
-                </button>
-
-                {/* Profile Button */}
-                <button
-                  onClick={() => setShowProfileModal(true)}
-                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2.5 rounded-full font-semibold transition-all duration-200 flex items-center space-x-2 shadow-lg hover:shadow-xl"
-                >
-                  <Home className="w-4 h-4" />
-                  <span>Profile</span>
-                </button>
-
                 {/* User Menu */}
                 <div className="relative">
                   <button
@@ -278,6 +241,57 @@ const Header = ({ onCreateClick, isWalletConnected, onConnectWallet, walletAddre
         onClose={() => setShowUserProfileModal(false)}
         userAddress={selectedUserAddress}
       />
+
+      {/* Floating Vertical Navigation - только когда кошелек подключен */}
+      {isConnected && (
+        <>
+          {/* Боковая панель в стиле верхней панели */}
+          <div className="fixed top-0 right-0 bottom-0 w-20 bg-gradient-to-b from-white/90 via-white/95 to-white/90 backdrop-blur-xl border-l border-gray-200/50 shadow-lg shadow-gray-900/5 z-30">
+            <div className="flex flex-col items-center py-6 space-y-4 mt-20">
+            {/* Create Pin Button - главная кнопка */}
+            <button
+              onClick={onCreateClick}
+              className="bg-gradient-to-br from-[#51FED6] to-[#4AE8C7] hover:from-[#4AE8C7] hover:to-[#51FED6] text-gray-900 p-4 rounded-2xl font-semibold transition-all duration-300 shadow-2xl hover:shadow-[#51FED6]/25 transform hover:scale-110 hover:-translate-y-1 border border-white/20"
+              title="Create Pin"
+            >
+              <Plus className="w-6 h-6" />
+            </button>
+
+            {/* Messages Button */}
+            <button
+              onClick={() => setShowMessengerModal(true)}
+              className="bg-white/90 backdrop-blur-sm hover:bg-white text-gray-700 hover:text-[#51FED6] p-4 rounded-2xl font-semibold transition-all duration-300 shadow-xl hover:shadow-2xl border border-gray-200/50 hover:border-[#51FED6]/30 transform hover:scale-105 hover:-translate-y-1"
+              title="Messages"
+            >
+              <MessageCircle className="w-5 h-5" />
+            </button>
+
+            {/* Notifications Button */}
+            <button
+              onClick={() => setShowNotificationsModal(true)}
+              className="relative bg-white/90 backdrop-blur-sm hover:bg-white text-gray-700 hover:text-[#51FED6] p-4 rounded-2xl font-semibold transition-all duration-300 shadow-xl hover:shadow-2xl border border-gray-200/50 hover:border-[#51FED6]/30 transform hover:scale-105 hover:-translate-y-1"
+              title="Notifications"
+            >
+              <Bell className="w-5 h-5" />
+              {unreadNotifications > 0 && (
+                <div className="absolute -top-2 -right-2 bg-gradient-to-br from-red-500 to-red-600 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-bold shadow-lg border-2 border-white animate-pulse">
+                  {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                </div>
+              )}
+            </button>
+
+            {/* Profile Button */}
+            <button
+              onClick={() => setShowProfileModal(true)}
+              className="bg-white/90 backdrop-blur-sm hover:bg-white text-gray-700 hover:text-[#51FED6] p-4 rounded-2xl font-semibold transition-all duration-300 shadow-xl hover:shadow-2xl border border-gray-200/50 hover:border-[#51FED6]/30 transform hover:scale-105 hover:-translate-y-1"
+              title="Profile"
+            >
+              <Home className="w-5 h-5" />
+            </button>
+            </div>
+          </div>
+        </>
+      )}
     </>
   );
 };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { User, X, Heart, MessageCircle, Trash2, Edit, Save, Camera, Upload } from "lucide-react";
+import { User, X, Heart, MessageCircle, Trash2, Edit, Save, Camera, Upload, Copy, Check } from "lucide-react";
 import { profileService } from "../services/profileService";
 import { useEthereumWallet } from "../contexts/EthereumWalletProvider";
 import { useIrys } from "../hooks/useIrys";
@@ -35,6 +35,8 @@ const ProfileModal = ({ isOpen, onClose }) => {
   const [saving, setSaving] = useState(false);
   const [deletingPin, setDeletingPin] = useState(null);
   const [ethBalance, setEthBalance] = useState(null);
+  const [addressCopied, setAddressCopied] = useState(false);
+  const [addressHighlighted, setAddressHighlighted] = useState(false);
 
 
 
@@ -293,18 +295,49 @@ const ProfileModal = ({ isOpen, onClose }) => {
     }
   };
 
+  const handleCopyAddress = async () => {
+    if (!address) return;
+    
+    try {
+      await navigator.clipboard.writeText(address);
+      setAddressCopied(true);
+      toast.success("Wallet address copied to clipboard!");
+      
+      // Сбрасываем состояние через 2 секунды
+      setTimeout(() => {
+        setAddressCopied(false);
+      }, 2000);
+    } catch (error) {
+      console.error("Failed to copy address:", error);
+      toast.error("Failed to copy address");
+    }
+  };
+
+  const handleAddressClick = () => {
+    // Подсвечиваем адрес при клике
+    setAddressHighlighted(true);
+    
+    // Автоматически копируем адрес
+    handleCopyAddress();
+    
+    // Убираем подсветку через 1 секунду
+    setTimeout(() => {
+      setAddressHighlighted(false);
+    }, 1000);
+  };
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden p-4">
       {/* Backdrop */}
       <div 
-        className="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm transition-opacity duration-300"
+        className="absolute inset-0 bg-gradient-to-br from-black/50 via-black/60 to-black/50 backdrop-blur-md transition-opacity duration-300"
         onClick={onClose}
       />
       
       {/* Modal */}
-      <div className="relative bg-white rounded-2xl shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] flex flex-col transform transition-all duration-300 scale-100">
+      <div className="relative bg-gradient-to-br from-white/95 via-white to-white/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 max-w-5xl w-full max-h-[95vh] flex flex-col transform transition-all duration-300 scale-100 overflow-hidden">
         {/* Header */}
         <div className="relative p-6 border-b border-gray-100">
           <button
@@ -444,23 +477,31 @@ const ProfileModal = ({ isOpen, onClose }) => {
         )}
 
         {/* Stats */}
-        <div className="px-6 py-4 bg-gray-50">
-          <div className="grid grid-cols-4 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-gray-900">{stats.totalPins}</div>
-              <div className="text-xs text-gray-500">Pins</div>
+        <div className="px-6 py-6 bg-gradient-to-r from-gray-50 via-white to-gray-50">
+          <div className="grid grid-cols-4 gap-6">
+            <div className="text-center bg-white rounded-2xl p-4 shadow-sm border border-gray-100/50 hover:shadow-md transition-all duration-200 group">
+              <div className="text-3xl font-bold bg-gradient-to-br from-[#51FED6] to-[#4AE8C7] bg-clip-text text-transparent group-hover:scale-110 transition-transform duration-200">
+                {stats.totalPins}
+              </div>
+              <div className="text-sm font-medium text-gray-600 mt-1">Pins</div>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-gray-900">{stats.totalLikesOnUserPins}</div>
-              <div className="text-xs text-gray-500">Likes Received</div>
+            <div className="text-center bg-white rounded-2xl p-4 shadow-sm border border-gray-100/50 hover:shadow-md transition-all duration-200 group">
+              <div className="text-3xl font-bold bg-gradient-to-br from-pink-500 to-red-500 bg-clip-text text-transparent group-hover:scale-110 transition-transform duration-200">
+                {stats.totalLikesOnUserPins}
+              </div>
+              <div className="text-sm font-medium text-gray-600 mt-1">Likes Received</div>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-gray-900">{stats.totalComments}</div>
-              <div className="text-xs text-gray-500">Comments</div>
+            <div className="text-center bg-white rounded-2xl p-4 shadow-sm border border-gray-100/50 hover:shadow-md transition-all duration-200 group">
+              <div className="text-3xl font-bold bg-gradient-to-br from-blue-500 to-purple-500 bg-clip-text text-transparent group-hover:scale-110 transition-transform duration-200">
+                {stats.totalComments}
+              </div>
+              <div className="text-sm font-medium text-gray-600 mt-1">Comments</div>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-gray-900">{stats.totalLikes}</div>
-              <div className="text-xs text-gray-500">Likes Given</div>
+            <div className="text-center bg-white rounded-2xl p-4 shadow-sm border border-gray-100/50 hover:shadow-md transition-all duration-200 group">
+              <div className="text-3xl font-bold bg-gradient-to-br from-orange-500 to-yellow-500 bg-clip-text text-transparent group-hover:scale-110 transition-transform duration-200">
+                {stats.totalLikes}
+              </div>
+              <div className="text-sm font-medium text-gray-600 mt-1">Likes Given</div>
             </div>
           </div>
         </div>
@@ -514,24 +555,77 @@ const ProfileModal = ({ isOpen, onClose }) => {
                 </div>
               ) : activeTab === 'profile' ? (
             <div className="space-y-6">
-              <div className="bg-white border border-gray-200 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Profile Information</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
-                    <p className="text-gray-900">{userProfile?.username || 'Not set'}</p>
+              <div className="bg-gradient-to-br from-white to-gray-50/50 border border-gray-200/50 rounded-3xl p-8 shadow-lg hover:shadow-xl transition-all duration-300">
+                <div className="flex items-center mb-6">
+                  <div className="bg-gradient-to-br from-[#51FED6] to-[#4AE8C7] p-3 rounded-2xl mr-4">
+                    <User className="w-6 h-6 text-gray-900" />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Display Name</label>
-                    <p className="text-gray-900">{userProfile?.displayName || 'Not set'}</p>
+                  <h3 className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">Profile Information</h3>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="bg-gradient-to-br from-white via-white to-blue-50/30 backdrop-blur-sm rounded-2xl p-6 border border-blue-100/50 shadow-lg shadow-blue-500/10 hover:shadow-xl hover:shadow-blue-500/15 hover:bg-white transform hover:scale-[1.02] transition-all duration-300 group">
+                    <label className="block text-sm font-bold text-[#51FED6] mb-3 flex items-center">
+                      <div className="w-2 h-2 bg-[#51FED6] rounded-full mr-2 group-hover:animate-pulse"></div>
+                      Username
+                    </label>
+                    <p className="text-gray-900 text-xl font-semibold">{userProfile?.username || <span className="text-gray-400 italic font-normal">Not set</span>}</p>
                   </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Bio</label>
-                    <p className="text-gray-900">{userProfile?.bio || 'No bio yet'}</p>
+                  <div className="bg-gradient-to-br from-white via-white to-purple-50/30 backdrop-blur-sm rounded-2xl p-6 border border-purple-100/50 shadow-lg shadow-purple-500/10 hover:shadow-xl hover:shadow-purple-500/15 hover:bg-white transform hover:scale-[1.02] transition-all duration-300 group">
+                    <label className="block text-sm font-bold text-purple-600 mb-3 flex items-center">
+                      <div className="w-2 h-2 bg-purple-600 rounded-full mr-2 group-hover:animate-pulse"></div>
+                      Display Name
+                    </label>
+                    <p className="text-gray-900 text-xl font-semibold">{userProfile?.displayName || <span className="text-gray-400 italic font-normal">Not set</span>}</p>
                   </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Wallet Address</label>
-                    <p className="text-gray-900 font-mono">{address}</p>
+                  <div className="md:col-span-2 bg-gradient-to-br from-white via-white to-emerald-50/30 backdrop-blur-sm rounded-2xl p-6 border border-emerald-100/50 shadow-lg shadow-emerald-500/10 hover:shadow-xl hover:shadow-emerald-500/15 hover:bg-white transform hover:scale-[1.01] transition-all duration-300 group">
+                    <label className="block text-sm font-bold text-emerald-600 mb-3 flex items-center">
+                      <div className="w-2 h-2 bg-emerald-600 rounded-full mr-2 group-hover:animate-pulse"></div>
+                      Bio
+                    </label>
+                    <p className="text-gray-900 text-lg leading-relaxed font-medium">{userProfile?.bio || <span className="text-gray-400 italic font-normal">No bio yet - tell us about yourself!</span>}</p>
+                  </div>
+                  <div className="md:col-span-2 bg-gradient-to-br from-white via-white to-gray-50/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-200/50 shadow-lg shadow-gray-500/10 hover:shadow-xl hover:shadow-gray-500/15 hover:bg-white transform hover:scale-[1.01] transition-all duration-300 group">
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="block text-sm font-bold text-gray-700 flex items-center">
+                        <div className="w-2 h-2 bg-gray-700 rounded-full mr-2 group-hover:animate-pulse"></div>
+                        Wallet Address
+                      </label>
+                      <button
+                        onClick={handleCopyAddress}
+                        className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
+                          addressCopied 
+                            ? 'bg-green-100 text-green-700 border border-green-200' 
+                            : 'bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 border border-gray-200'
+                        }`}
+                      >
+                        {addressCopied ? (
+                          <>
+                            <Check className="w-3 h-3" />
+                            <span>Copied!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3 h-3" />
+                            <span>Copy</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    <div 
+                      className={`bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-4 border border-gray-200 shadow-inner relative group-hover:shadow-inner-lg cursor-pointer transition-all duration-200 ${
+                        addressHighlighted 
+                          ? 'ring-2 ring-[#51FED6] ring-opacity-50 bg-gradient-to-r from-[#51FED6]/10 to-[#4AE8C7]/10 border-[#51FED6]/30 shadow-lg transform scale-[1.02]' 
+                          : 'hover:bg-gradient-to-r hover:from-gray-100 hover:to-gray-150 hover:border-gray-300'
+                      }`}
+                      onClick={handleAddressClick}
+                    >
+                      <p className={`font-mono text-sm break-all select-all font-medium pr-2 transition-colors duration-200 ${
+                        addressHighlighted ? 'text-[#51FED6] font-bold' : 'text-gray-900'
+                      }`}>
+                        {address}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
