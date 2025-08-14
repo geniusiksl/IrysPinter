@@ -1,9 +1,9 @@
-// util polyfill for browser environment
-// This provides util functions that Node.js modules expect
+// Улучшенный util polyfill для браузерной среды
+// Обеспечивает util функции, которые ожидают Node.js модули
 
-// Safe promisify function that handles non-function arguments gracefully
+// Безопасная promisify функция с улучшенной обработкой ошибок
 function promisify(original) {
-  // If original is not a function, return a function that returns a resolved promise
+  // Если original не функция, возвращаем функцию, которая возвращает resolved promise
   if (typeof original !== 'function') {
     console.warn('util.promisify called with non-function argument:', typeof original, original);
     return function(...args) {
@@ -11,8 +11,14 @@ function promisify(original) {
     };
   }
 
-  return function(...args) {
+  // Проверяем, не является ли функция уже промисифицированной
+  if (original[promisify.custom]) {
+    return original[promisify.custom];
+  }
+
+  return function promisified(...args) {
     return new Promise((resolve, reject) => {
+      // Добавляем callback в конец аргументов
       args.push((err, ...values) => {
         if (err) {
           reject(err);
@@ -20,13 +26,62 @@ function promisify(original) {
           resolve(values.length === 1 ? values[0] : values);
         }
       });
+      
       try {
-        original.apply(this, args);
+        const result = original.apply(this, args);
+        // Если функция возвращает Promise, используем его
+        if (result && typeof result.then === 'function') {
+          result.then(resolve, reject);
+        }
       } catch (error) {
         reject(error);
       }
     });
   };
+}
+
+// Добавляем custom символ для совместимости с Node.js
+promisify.custom = Symbol.for('nodejs.util.promisify.custom');
+
+// Улучшенная функция inherits для правильного наследования классов
+function inherits(ctor, superCtor) {
+  if (ctor === undefined || ctor === null) {
+    throw new TypeError('The constructor to "inherits" must not be null or undefined');
+  }
+
+  if (superCtor === undefined || superCtor === null) {
+    throw new TypeError('The super constructor to "inherits" must not be null or undefined');
+  }
+
+  if (superCtor.prototype === undefined) {
+    throw new TypeError('The super constructor to "inherits" must have a prototype');
+  }
+
+  ctor.super_ = superCtor;
+  Object.setPrototypeOf(ctor.prototype, superCtor.prototype);
+}
+
+// Функция для безопасного создания классов с наследованием
+function createSafeClass(name, superClass, constructor) {
+  if (typeof superClass !== 'function') {
+    console.warn(`Safe class creation: superClass for ${name} is not a function, creating standalone class`);
+    return constructor || function() {};
+  }
+  
+  try {
+    const SafeClass = function(...args) {
+      if (constructor) {
+        return constructor.apply(this, args);
+      }
+      return superClass.apply(this, args);
+    };
+    
+    inherits(SafeClass, superClass);
+    return SafeClass;
+  } catch (error) {
+    console.warn(`Safe class creation failed for ${name}:`, error.message);
+    return constructor || function() {};
+  }
 }
 
 // Safe deprecate function that handles non-function arguments
@@ -97,21 +152,8 @@ function callbackify(original) {
   };
 }
 
-// Simple inherits function
-function inherits(ctor, superCtor) {
-  if (typeof ctor !== 'function' || typeof superCtor !== 'function') {
-    return;
-  }
-  ctor.super_ = superCtor;
-  ctor.prototype = Object.create(superCtor.prototype, {
-    constructor: {
-      value: ctor,
-      enumerable: false,
-      writable: true,
-      configurable: true
-    }
-  });
-}
+// Improved inherits function (replaced the old simple version)
+// The improved version is already defined above
 
 // Simple format function
 function format(f, ...args) {
@@ -184,5 +226,8 @@ module.exports = {
   isError: (arg) => arg instanceof Error,
   isFunction: (arg) => typeof arg === 'function',
   isPrimitive: (arg) => arg == null || (typeof arg !== 'object' && typeof arg !== 'function'),
-  isBuffer: (arg) => arg && typeof arg === 'object' && typeof arg.constructor === 'function' && arg.constructor.name === 'Buffer'
+  isBuffer: (arg) => arg && typeof arg === 'object' && typeof arg.constructor === 'function' && arg.constructor.name === 'Buffer',
+  
+  // Добавляем новые функции для безопасного наследования
+  createSafeClass: createSafeClass
 };

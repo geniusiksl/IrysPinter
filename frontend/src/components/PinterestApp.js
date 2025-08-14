@@ -15,6 +15,8 @@ const API = `${BACKEND_URL}/api`;
 const PinterestApp = () => {
   const { address, isConnected } = useEthereumWallet();
   const [pins, setPins] = useState([]);
+  const [filteredPins, setFilteredPins] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedPin, setSelectedPin] = useState(null);
   const [showUserProfileModal, setShowUserProfileModal] = useState(false);
@@ -25,10 +27,24 @@ const PinterestApp = () => {
     fetchPins();
   }, []);
 
+  // Эффект для фильтрации пинов при изменении поискового запроса
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setFilteredPins(pins);
+    } else {
+      const filtered = pins.filter(pin => 
+        pin.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        pin.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      setFilteredPins(filtered);
+    }
+  }, [pins, searchQuery]);
+
   const fetchPins = async () => {
     try {
       const response = await axios.get(`${API}/pins`);
       setPins(response.data);
+      setFilteredPins(response.data); // Инициализируем фильтрованные пины
       setLoading(false);
     } catch (error) {
       console.error("Error fetching pins:", error);
@@ -43,8 +59,21 @@ const PinterestApp = () => {
     toast.success("Pin created successfully!");
   };
 
-  const handlePinClick = (pin) => {
-    setSelectedPin(pin);
+  const handlePinClick = async (pinOrId) => {
+    // Если передан объект пина, используем его
+    if (typeof pinOrId === 'object' && pinOrId._id) {
+      setSelectedPin(pinOrId);
+    } 
+    // Если передан только ID, загружаем пин из базы данных
+    else if (typeof pinOrId === 'string') {
+      try {
+        const response = await axios.get(`${API}/pins/${pinOrId}`);
+        setSelectedPin(response.data);
+      } catch (error) {
+        console.error("Error fetching pin:", error);
+        toast.error("Failed to load pin");
+      }
+    }
   };
 
   const handlePinUpdated = (updatedPin) => {
@@ -55,6 +84,10 @@ const PinterestApp = () => {
   const handleUserClick = (userAddress) => {
     setSelectedUserAddress(userAddress);
     setShowUserProfileModal(true);
+  };
+
+  const handleSearch = (query) => {
+    setSearchQuery(query);
   };
 
   if (loading) {
@@ -75,6 +108,8 @@ const PinterestApp = () => {
         isWalletConnected={!!address}
         onConnectWallet={() => {}}
         walletAddress={address}
+        onSearch={handleSearch}
+        onPinClick={handlePinClick}
       />
       
       <div className="py-6">
@@ -89,11 +124,27 @@ const PinterestApp = () => {
             <span className="w-2 h-2 bg-gray-900 rounded-full mr-2 animate-pulse"></span>
             {address ? `Wallet: ${address.slice(0, 6)}...${address.slice(-4)}` : "Wallet not connected"}
           </div>
+          {searchQuery && (
+            <div className="mt-4">
+              <p className="text-sm text-gray-600">
+                Showing results for: <span className="font-semibold">"{searchQuery}"</span>
+                <button 
+                  onClick={() => setSearchQuery("")}
+                  className="ml-2 text-[#51FED6] hover:underline"
+                >
+                  Clear search
+                </button>
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                Found {filteredPins.length} pin{filteredPins.length !== 1 ? 's' : ''}
+              </p>
+            </div>
+          )}
         </div>
       </div>
       
       <PinGrid
-        pins={pins}
+        pins={filteredPins}
         onPinClick={handlePinClick}
         onUserClick={handleUserClick}
         currentWallet={address}

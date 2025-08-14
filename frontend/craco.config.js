@@ -34,6 +34,9 @@ module.exports = {
           'stream/promises': path.resolve(__dirname, 'src/polyfills/stream-promises-polyfill.js'),
           tmp: path.resolve(__dirname, 'src/polyfills/tmp-polyfill.js'),
           'tmp-promise': path.resolve(__dirname, 'src/polyfills/tmp-promise-polyfill.js'),
+          events: require.resolve('events/'),
+          url: require.resolve('url/'),
+          querystring: require.resolve('querystring-es3'),
         },
       };
       console.log('webpackConfig.resolve.fallback:', webpackConfig.resolve.fallback);
@@ -80,6 +83,15 @@ module.exports = {
         new webpack.NormalModuleReplacementPlugin(
           /@irys\/bundles/,
           path.resolve(__dirname, 'src/polyfills/irys-bundles-polyfill.js')
+        ),
+        // Дополнительные замены для проблемных модулей Irys
+        new webpack.NormalModuleReplacementPlugin(
+          /^events$/,
+          require.resolve('events/')
+        ),
+        new webpack.NormalModuleReplacementPlugin(
+          /^stream$/,
+          require.resolve('stream-browserify')
         ),
       ];
 

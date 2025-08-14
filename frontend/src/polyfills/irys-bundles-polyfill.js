@@ -1,43 +1,43 @@
-// Polyfill for @irys/bundles to prevent Node.js compatibility issues in browser
+// Улучшенный полифилл для @irys/bundles module
+// Этот модуль используется Irys SDK, но имеет Node.js зависимости
 
-// Mock FileBundle class
-class MockFileBundle {
-  constructor(data, options = {}) {
-    this.data = data;
+// Создаем базовый класс для всех mock классов
+class BaseIrysMock {
+  constructor(name, options = {}) {
+    this.name = name;
     this.options = options;
-    console.warn('Using mock FileBundle - some functionality may be limited');
+    this._initialized = true;
+    console.warn(`Using mock ${name} - some Irys functionality may be limited`);
+  }
+}
+
+// Mock Bundle класс с более полной реализацией
+class MockBundle extends BaseIrysMock {
+  constructor(options = {}) {
+    super('Bundle', options);
+    this.items = [];
+    this.size = 0;
   }
 
-  async sign(signer) {
-    console.warn('MockFileBundle.sign called - returning mock signature');
+  async upload(data, options = {}) {
+    console.warn('Mock Bundle upload called - returning mock response');
     return {
-      id: 'mock-id-' + Date.now(),
-      signature: 'mock-signature',
-      owner: 'mock-owner'
-    };
-  }
-
-  async upload() {
-    console.warn('MockFileBundle.upload called - returning mock response');
-    return {
-      id: 'mock-upload-id-' + Date.now(),
+      id: 'mock-bundle-' + Date.now(),
+      size: data ? data.length || 0 : 0,
       timestamp: Date.now(),
-      version: '1.0.0',
-      public: 'mock-public-key',
-      signature: 'mock-signature',
-      deadlineHeight: 0,
-      block: 0,
-      validatorSignatures: [],
-      verify: () => Promise.resolve(true)
+      mock: true
     };
   }
 
-  get id() {
-    return 'mock-bundle-id-' + Date.now();
+  async download(id) {
+    console.warn('Mock Bundle download called - not implemented in browser');
+    throw new Error('Bundle download not available in browser environment');
   }
 
-  get size() {
-    return this.data ? this.data.length : 0;
+  addItem(data, tags = {}) {
+    this.items.push({ data, tags, id: 'mock-item-' + this.items.length });
+    this.size += data ? data.length || 0 : 0;
+    return this;
   }
 }
 

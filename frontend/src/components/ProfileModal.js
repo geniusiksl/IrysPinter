@@ -12,7 +12,7 @@ const API = `${BACKEND_URL}/api`;
 
 const ProfileModal = ({ isOpen, onClose }) => {
   const { address } = useEthereumWallet();
-  const { uploadToIrys, checkIrysBalance, fundIrysAccount, isUploading } = useIrys();
+  const { uploadToIrys, isUploading } = useIrys();
   const fileInputRef = useRef(null);
   const [activeTab, setActiveTab] = useState('profile');
   const [userPins, setUserPins] = useState([]);
@@ -35,32 +35,18 @@ const ProfileModal = ({ isOpen, onClose }) => {
   const [saving, setSaving] = useState(false);
   const [deletingPin, setDeletingPin] = useState(null);
   const [ethBalance, setEthBalance] = useState(null);
-  const [irysBalance, setIrysBalance] = useState(null);
-  const [checkingBalance, setCheckingBalance] = useState(false);
+
+
 
   // Загружаем данные профиля при открытии модала
   useEffect(() => {
     if (isOpen && address) {
       loadProfileData();
       loadEthBalance();
-      loadIrysBalance();
     }
   }, [isOpen, address]);
 
-  // Загружаем баланс Irys
-  const loadIrysBalance = async () => {
-    try {
-      setCheckingBalance(true);
-      const balance = await checkIrysBalance();
-      setIrysBalance(balance);
-      console.log(`Irys balance loaded: ${balance} ETH`);
-    } catch (error) {
-      console.error("Error loading Irys balance:", error);
-      setIrysBalance(null);
-    } finally {
-      setCheckingBalance(false);
-    }
-  };
+
 
   const loadProfileData = async () => {
     if (!address) return;
@@ -310,7 +296,7 @@ const ProfileModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden">
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm transition-opacity duration-300"
@@ -318,7 +304,7 @@ const ProfileModal = ({ isOpen, onClose }) => {
       />
       
       {/* Modal */}
-      <div className="relative bg-white rounded-2xl shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden transform transition-all duration-300 scale-100">
+      <div className="relative bg-white rounded-2xl shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] flex flex-col transform transition-all duration-300 scale-100">
         {/* Header */}
         <div className="relative p-6 border-b border-gray-100">
           <button
@@ -370,7 +356,11 @@ const ProfileModal = ({ isOpen, onClose }) => {
                 {isEditing ? "Update your profile information" : "Manage your pins and activity"}
               </p>
             </div>
-            {!isEditing && (
+          </div>
+          
+          {/* Edit Button - positioned separately */}
+          {!isEditing && (
+            <div className="absolute top-6 right-16">
               <button
                 onClick={() => setIsEditing(true)}
                 className="bg-[#51FED6] hover:bg-[#4AE8C7] text-gray-900 px-4 py-2 rounded-full font-medium transition-colors flex items-center space-x-2"
@@ -378,8 +368,8 @@ const ProfileModal = ({ isOpen, onClose }) => {
                 <Edit className="w-4 h-4" />
                 <span>Edit</span>
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Profile Edit Form */}
@@ -423,45 +413,7 @@ const ProfileModal = ({ isOpen, onClose }) => {
                   placeholder="Tell us about yourself..."
                 />
               </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Avatar
-                </label>
-                <div className="flex items-center space-x-4">
-                  <button
-                    type="button"
-                    onClick={handleAvatarClick}
-                    className="flex items-center space-x-2 bg-white border border-gray-300 rounded-lg px-4 py-2 hover:bg-gray-50 transition-colors"
-                  >
-                    <Upload className="w-4 h-4" />
-                    <span>Upload Image to Irys</span>
-                  </button>
-                  <span className="text-sm text-gray-500">or</span>
-                  <input
-                    type="url"
-                    value={editForm.avatar_url}
-                    onChange={(e) => setEditForm({...editForm, avatar_url: e.target.value})}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#51FED6] focus:border-[#51FED6]"
-                    placeholder="https://gateway.irys.xyz/..."
-                  />
-                </div>
-                <p className="text-sm text-gray-500 mt-1">
-                  💡 Images are stored on Irys decentralized storage. Requires ETH on Ethereum Mainnet for upload.
-                </p>
-                {editForm.avatar_url && (
-                  <div className="mt-2">
-                    <img
-                      src={editForm.avatar_url}
-                      alt="Preview"
-                      className="w-16 h-16 rounded-full object-cover"
-                      onError={(e) => {
-                        e.target.style.display = 'none';
-                        toast.error('Invalid image URL');
-                      }}
-                    />
-                  </div>
-                )}
-              </div>
+
             </div>
             <div className="flex space-x-3 mt-4">
               <button
@@ -514,6 +466,7 @@ const ProfileModal = ({ isOpen, onClose }) => {
         </div>
 
         {/* Tabs */}
+        {!isEditing && (
         <div className="px-6 py-4 border-b border-gray-100">
           <div className="flex space-x-8">
             <button
@@ -548,15 +501,18 @@ const ProfileModal = ({ isOpen, onClose }) => {
             </button>
           </div>
         </div>
+        )}
 
         {/* Content */}
-        <div className="p-6">
-          {loading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#51FED6] mx-auto mb-4"></div>
-              <p className="text-gray-500">Loading profile data...</p>
-            </div>
-          ) : activeTab === 'profile' ? (
+        <div className="flex-1 overflow-y-auto p-6">
+          {!isEditing && (
+            <>
+              {loading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#51FED6] mx-auto mb-4"></div>
+                  <p className="text-gray-500">Loading profile data...</p>
+                </div>
+              ) : activeTab === 'profile' ? (
             <div className="space-y-6">
               <div className="bg-white border border-gray-200 rounded-lg p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Profile Information</h3>
@@ -576,28 +532,6 @@ const ProfileModal = ({ isOpen, onClose }) => {
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Wallet Address</label>
                     <p className="text-gray-900 font-mono">{address}</p>
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">ETH Balance</label>
-                    <p className="text-gray-900 font-mono">{ethBalance || 'Loading...'} ETH</p>
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Irys Balance</label>
-                    <p className="text-gray-900 font-mono">
-                      {checkingBalance ? 'Checking...' : (irysBalance ? `${parseFloat(irysBalance).toFixed(6)} ETH` : 'Not loaded')}
-                    </p>
-                    {irysBalance && parseFloat(irysBalance) < 0.001 && (
-                      <p className="text-sm text-orange-600 mt-1">
-                        ⚠️ Low Irys balance. Account will be funded automatically during upload.
-                      </p>
-                    )}
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Avatar Storage</label>
-                    <p className="text-gray-900">
-                      Avatars are stored on <strong>Irys decentralized storage</strong>. 
-                      Requires <strong>ETH on Ethereum Mainnet</strong> for upload.
-                    </p>
                   </div>
                 </div>
               </div>
@@ -712,6 +646,8 @@ const ProfileModal = ({ isOpen, onClose }) => {
                 </div>
               )}
             </div>
+          )}
+            </>
           )}
         </div>
       </div>

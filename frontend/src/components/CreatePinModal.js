@@ -9,7 +9,7 @@ const API = `${BACKEND_URL}/api`;
 
 const CreatePinModal = ({ onClose, onPinCreated, walletAddress }) => {
   const { address, isConnected } = useEthereumWallet();
-  const { uploadToIrys, checkIrysBalance, fundIrysAccount, isUploading } = useIrys();
+  const { uploadToIrys, isUploading } = useIrys();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [image, setImage] = useState(null);
@@ -49,24 +49,7 @@ const CreatePinModal = ({ onClose, onPinCreated, walletAddress }) => {
     setUploading(true);
     
     try {
-      // 1. Check Irys balance before upload
-      console.log("Checking Irys balance...");
-      const balance = await checkIrysBalance();
-      console.log(`Current Irys balance: ${balance} ETH`);
-      
-      // Fund account if balance is insufficient
-      if (parseFloat(balance) < 0.001) {
-        console.log('Insufficient Irys balance, attempting to fund account...');
-        try {
-          await fundIrysAccount(0.001);
-          console.log('Irys account funded successfully');
-        } catch (fundError) {
-          console.error('Failed to fund Irys account:', fundError);
-          throw new Error(`Insufficient Irys balance (${balance} ETH) and failed to fund account: ${fundError.message}`);
-        }
-      }
-      
-      // 2. Upload image to Irys
+      // Upload image to Irys
       console.log("Uploading image to Irys...");
       const imageUpload = await uploadToIrys(image, {
         "Content-Type": image.type,

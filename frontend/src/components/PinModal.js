@@ -3,6 +3,7 @@ import axios from "axios";
 import toast from "react-hot-toast";
 import { useIrys } from "../hooks/useIrys";
 import { useEthereumWallet } from "../contexts/EthereumWalletProvider";
+import { Share2, X } from "lucide-react";
 
 const BACKEND_URL = "https://iryspinter.onrender.com";
 const API = `${BACKEND_URL}/api`;
@@ -15,8 +16,11 @@ const PinModal = ({ pin, onClose, onPinPurchased, onPinUpdated, currentWallet })
   const [loading, setLoading] = useState(false);
   const [likeLoading, setLikeLoading] = useState(false);
   const [commentLoading, setCommentLoading] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [conversations, setConversations] = useState([]);
+  const [shareLoading, setShareLoading] = useState(false);
 
-  const { uploadToIrys, checkIrysBalance, fundIrysAccount } = useIrys();
+  const { uploadToIrys } = useIrys();
   const { isConnected, address } = useEthereumWallet();
 
   const isOwner = pinData.owner === currentWallet;
@@ -57,21 +61,10 @@ const PinModal = ({ pin, onClose, onPinPurchased, onPinUpdated, currentWallet })
       setLikeLoading(true);
       
       // Проверяем баланс Irys перед загрузкой
-      const balance = await checkIrysBalance();
-      console.log(`Current Irys balance: ${balance} ETH`);
+
+
       
-      // Пополняем аккаунт если баланс недостаточен
-      if (parseFloat(balance) < 0.001) {
-        console.log('Insufficient Irys balance, attempting to fund account...');
-        try {
-          await fundIrysAccount(0.001);
-          console.log('Irys account funded successfully');
-        } catch (fundError) {
-          console.error('Failed to fund Irys account:', fundError);
-          throw new Error(`Insufficient Irys balance (${balance} ETH) and failed to fund account: ${fundError.message}`);
-        }
-      }
-      
+
       // Создаем данные лайка для Irys
       const likeData = {
         type: "like",
@@ -159,6 +152,102 @@ const PinModal = ({ pin, onClose, onPinPurchased, onPinUpdated, currentWallet })
     }
   };
 
+  const loadConversations = async () => {
+    if (!address) return;
+    
+    try {
+      const response = await axios.get(`${API}/conversations/${address}`);
+      setConversations(response.data);
+    } catch (error) {
+      console.error("Error loading conversations:", error);
+      toast.error("Failed to load conversations");
+    }
+  };
+
+  const handleShare = async () => {
+    if (!isConnected) {
+      toast.error("Please connect your wallet");
+      return;
+    }
+    
+    setShowShareModal(true);
+    await loadConversations();
+  };
+
+  const shareToConversation = async (conversation) => {
+    if (!conversation) return;
+    
+    setShareLoading(true);
+    try {
+      const otherParticipant = conversation.participants.find(p => p !== address);
+      
+      // Prepare pin share message data for Irys
+      const shareData = {
+        sender: address,
+        receiver: otherParticipant,
+        content: `Shared a pin: ${pinData.title}`,
+        messageType: 'pin',
+        pinId: pinData._id,
+        conversationId: conversation._id,
+        timestamp: new Date().toISOString(),
+        version: '1.0',
+        pinData: {
+          title: pinData.title,
+          description: pinData.description,
+          image_url: pinData.image_url,
+          owner: pinData.owner
+        }
+      };
+
+      // Upload share message to Irys for permanent storage
+      let irysId = null;
+      try {
+        console.log('Uploading pin share to Irys...', shareData);
+        
+        const shareBlob = new Blob([JSON.stringify(shareData)], { 
+          type: 'application/json' 
+        });
+        
+        irysId = await uploadToIrys(shareBlob, {
+          'App-Name': 'IrysPinter-Messages',
+          'App-Version': '1.0',
+          'Message-Type': 'pin-share',
+          'Sender': address,
+          'Receiver': otherParticipant,
+          'Conversation-Id': conversation._id,
+          'Pin-Id': pinData._id
+        });
+        console.log('Pin share uploaded to Irys with ID:', irysId);
+      } catch (irysError) {
+        console.error('Error uploading to Irys:', irysError);
+        toast.error('Failed to save share to Irys, but will save locally');
+      }
+
+      // Save message to backend database with Irys ID
+      const messagePayload = {
+        ...shareData,
+        irysId: irysId
+      };
+      
+      console.log('Sending message payload to backend:', messagePayload);
+      const response = await axios.post(`${API}/messages`, messagePayload);
+      console.log('Backend response:', response.data);
+
+      setShowShareModal(false);
+      toast.success(`Pin shared successfully!`);
+    } catch (error) {
+      console.error("Error sharing pin:", error);
+      toast.error("Failed to share pin");
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
+  const formatAddress = (addr) => {
+    if (!addr) return "";
+    return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+  };
+
 
 
   return (
@@ -210,14 +299,25 @@ const PinModal = ({ pin, onClose, onPinPurchased, onPinUpdated, currentWallet })
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-3">
                 <h2 className="text-2xl font-bold text-gray-900">{pinData.title}</h2>
-                <button
-                  onClick={handleLike}
-                  disabled={likeLoading}
-                  className="flex items-center space-x-1"
-                >
-                  <span className="text-xl">{hasLiked ? '❤️' : '🤍'}</span>
-                  <span className="text-sm text-gray-600">({pinData.likes || 0})</span>
-                </button>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={handleLike}
+                    disabled={likeLoading}
+                    className="flex items-center space-x-1 hover:bg-gray-100 px-2 py-1 rounded-lg transition-colors"
+                  >
+                    <span className="text-xl">{hasLiked ? '❤️' : '🤍'}</span>
+                    <span className="text-sm text-gray-600">({pinData.likes || 0})</span>
+                  </button>
+                  <button
+                    onClick={handleShare}
+                    disabled={shareLoading}
+                    className="flex items-center space-x-1 hover:bg-gray-100 px-2 py-1 rounded-lg transition-colors"
+                    title="Share pin"
+                  >
+                    <Share2 className="w-5 h-5 text-gray-600" />
+                    <span className="text-sm text-gray-600">Share</span>
+                  </button>
+                </div>
               </div>
               <button
                 onClick={onClose}
@@ -291,6 +391,83 @@ const PinModal = ({ pin, onClose, onPinPurchased, onPinUpdated, currentWallet })
           </div>
         </div>
       </div>
+
+      {/* Share Modal */}
+      {showShareModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-96 mx-4 max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Share Pin</h3>
+              <button
+                onClick={() => setShowShareModal(false)}
+                className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            
+            <div className="mb-4">
+              <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                <img
+                  src={pinData.image_url}
+                  alt={pinData.title}
+                  className="w-12 h-12 object-cover rounded"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm truncate">{pinData.title}</p>
+                  <p className="text-xs text-gray-500 truncate">{pinData.description}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium text-gray-700 mb-2">Select conversation:</h4>
+              {conversations.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="text-gray-400 mb-2">💬</div>
+                  <p className="text-gray-500 text-sm">No conversations found</p>
+                  <p className="text-gray-400 text-xs">Start a conversation first</p>
+                </div>
+              ) : (
+                conversations.map((conversation) => {
+                  const otherParticipant = conversation.participants.find(p => p !== address);
+                  return (
+                    <button
+                      key={conversation._id}
+                      onClick={() => shareToConversation(conversation)}
+                      disabled={shareLoading}
+                      className="w-full p-3 text-left hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors disabled:opacity-50"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+                          <span className="text-xs">👤</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate">
+                            {formatAddress(otherParticipant)}
+                          </p>
+                          {conversation.lastMessage && (
+                            <p className="text-xs text-gray-500 truncate">
+                              {conversation.lastMessage.content}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+
+            {shareLoading && (
+              <div className="mt-4 text-center">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#51FED6] mx-auto mb-2"></div>
+                <p className="text-sm text-gray-500">Sharing pin...</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

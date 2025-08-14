@@ -70,8 +70,12 @@ const PinCard = ({ pin, onClick, onUserClick, isOwner }) => {
               loading="lazy"
               onError={(e) => {
                 console.error("Failed to load image:", pin.image_url);
-                e.target.style.display = 'none';
-                e.target.nextSibling.style.display = 'flex';
+                if (e.target) {
+                  e.target.style.display = 'none';
+                  if (e.target.nextSibling) {
+                    e.target.nextSibling.style.display = 'flex';
+                  }
+                }
               }}
             />
           </div>

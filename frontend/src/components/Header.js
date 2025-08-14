@@ -13,7 +13,7 @@ import toast from "react-hot-toast";
 const BACKEND_URL = "http://localhost:8001";
 const API = `${BACKEND_URL}/api`;
 
-const Header = ({ onCreateClick, isWalletConnected, onConnectWallet, walletAddress }) => {
+const Header = ({ onCreateClick, isWalletConnected, onConnectWallet, walletAddress, onSearch, onPinClick }) => {
   const { address, isConnected, connectWallet, disconnectWallet } = useEthereumWallet();
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -93,11 +93,8 @@ const Header = ({ onCreateClick, isWalletConnected, onConnectWallet, walletAddre
 
   const handleSearch = (e) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
-      // Здесь можно добавить логику поиска
-      console.log("Searching for:", searchQuery);
-      // Можно добавить навигацию к результатам поиска или открыть модал с результатами
-      toast.success(`Searching for: ${searchQuery}`);
+    if (onSearch) {
+      onSearch(searchQuery.trim());
     }
   };
 
@@ -130,7 +127,7 @@ const Header = ({ onCreateClick, isWalletConnected, onConnectWallet, walletAddre
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search pins, users, or topics..."
+                  placeholder="Search Pins"
                   className="w-full pl-12 pr-20 py-3 bg-gray-50 border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-[#51FED6] focus:border-[#51FED6] focus:bg-white transition-all duration-200 text-gray-900 placeholder-gray-500"
                 />
                 <button
@@ -267,6 +264,12 @@ const Header = ({ onCreateClick, isWalletConnected, onConnectWallet, walletAddre
       <MessengerModal
         isOpen={showMessengerModal}
         onClose={() => setShowMessengerModal(false)}
+        onPinClick={(pinId) => {
+          setShowMessengerModal(false);
+          if (onPinClick) {
+            onPinClick(pinId);
+          }
+        }}
       />
 
       {/* User Profile Modal */}

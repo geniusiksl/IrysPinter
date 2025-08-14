@@ -45,6 +45,20 @@ app.get('/api/pins', async (req, res) => {
   }
 });
 
+// Get single pin by ID
+app.get('/api/pins/:id', async (req, res) => {
+  try {
+    const pin = await Pin.findById(req.params.id);
+    if (!pin) {
+      return res.status(404).json({ error: 'Pin not found' });
+    }
+    res.json(pin);
+  } catch (e) {
+    console.error('Error fetching pin:', e);
+    res.status(500).json({ error: 'Failed to fetch pin', details: e.message });
+  }
+});
+
 // Get pins by owner
 app.get('/api/pins/user/:address', async (req, res) => {
   try {
@@ -636,7 +650,29 @@ app.get('/api/conversations/:conversationId/messages', async (req, res) => {
       ]
     }).sort({ created_at: 1 });
     
-    res.json(messages);
+    // Populate pin data for messages that don't have it
+    const populatedMessages = await Promise.all(messages.map(async (msg) => {
+      if (msg.messageType === 'pin' && msg.pinId && !msg.pinData) {
+        try {
+          const pin = await Pin.findById(msg.pinId);
+          if (pin) {
+            const messageObj = msg.toObject();
+            messageObj.pinData = {
+              title: pin.title,
+              description: pin.description,
+              image_url: pin.image_url,
+              owner: pin.owner
+            };
+            return messageObj;
+          }
+        } catch (error) {
+          console.error('Error loading pin data:', error);
+        }
+      }
+      return msg.toObject ? msg.toObject() : msg;
+    }));
+    
+    res.json(populatedMessages);
   } catch (e) {
     console.error('Error fetching messages:', e);
     res.status(500).json({ error: 'Failed to fetch messages', details: e.message });
@@ -646,7 +682,7 @@ app.get('/api/conversations/:conversationId/messages', async (req, res) => {
 // Send a message
 app.post('/api/messages', async (req, res) => {
   try {
-    const { sender, receiver, content, messageType, pinId, image_url } = req.body;
+    const { sender, receiver, content, messageType, pinId, image_url, pinData, irysId } = req.body;
     
     if (!sender || !receiver || !content) {
       return res.status(400).json({ error: 'Sender, receiver, and content are required' });
@@ -673,10 +709,14 @@ app.post('/api/messages', async (req, res) => {
       messageType: messageType || 'text',
       pinId: pinId || null,
       image_url: image_url || null,
+      pinData: pinData || null,
+      irysId: irysId || null,
       created_at: new Date(),
     });
     
+    console.log('Creating message with pinData:', pinData);
     await message.save();
+    console.log('Saved message:', message.toObject());
     
     // Update conversation
     conversation.lastMessage = message._id;
@@ -725,6 +765,40 @@ app.put('/api/conversations/:conversationId/read', async (req, res) => {
   } catch (e) {
     console.error('Error marking messages as read:', e);
     res.status(500).json({ error: 'Failed to mark messages as read', details: e.message });
+  }
+});
+
+// Create new conversation
+app.post('/api/conversations', async (req, res) => {
+  try {
+    const { participants } = req.body;
+    
+    if (!participants || !Array.isArray(participants) || participants.length !== 2) {
+      return res.status(400).json({ error: 'Exactly two participants are required' });
+    }
+    
+    // Check if conversation already exists
+    let conversation = await Conversation.findOne({
+      participants: { $all: participants }
+    });
+    
+    if (conversation) {
+      return res.status(409).json({ error: 'Conversation already exists', conversation });
+    }
+    
+    // Create new conversation
+    conversation = new Conversation({
+      participants,
+      created_at: new Date(),
+      updated_at: new Date(),
+      unreadCount: new Map()
+    });
+    
+    await conversation.save();
+    res.status(201).json(conversation);
+  } catch (e) {
+    console.error('Error creating conversation:', e);
+    res.status(500).json({ error: 'Failed to create conversation', details: e.message });
   }
 });
 
