@@ -5,7 +5,7 @@ import { useEthereumWallet } from "../contexts/EthereumWalletProvider";
 import { useIrys } from "../hooks/useIrys";
 import toast from "react-hot-toast";
 
-const BACKEND_URL = "http://localhost:8001";
+const BACKEND_URL = "https://iryspinter.onrender.com";
 const API = `${BACKEND_URL}/api`;
 
 const MessengerModal = ({ isOpen, onClose, onPinClick }) => {

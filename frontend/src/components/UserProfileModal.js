@@ -4,7 +4,7 @@ import axios from "axios";
 import { useEthereumWallet } from "../contexts/EthereumWalletProvider";
 import toast from "react-hot-toast";
 
-const BACKEND_URL = "http://localhost:8001";
+const BACKEND_URL = "https://iryspinter.onrender.com";
 const API = `${BACKEND_URL}/api`;
 
 const UserProfileModal = ({ isOpen, onClose, userAddress }) => {
