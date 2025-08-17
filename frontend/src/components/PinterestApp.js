@@ -42,14 +42,19 @@ const PinterestApp = () => {
 
   const fetchPins = async () => {
     try {
-      const response = await axios.get(`${API}/pins`);
+      setLoading(true);
+      const response = await axios.get(`${API}/pins`, {
+        timeout: 10000, // 10 second timeout
+      });
       setPins(response.data);
       setFilteredPins(response.data); // Инициализируем фильтрованные пины
-      setLoading(false);
     } catch (error) {
       console.error("Error fetching pins:", error);
-      toast.error("Failed to load pins");
-      setLoading(false);
+      toast.error("Failed to load pins. Please try again.");
+      setPins([]); // Set empty array on error
+      setFilteredPins([]);
+    } finally {
+      setLoading(false); // Always set loading to false
     }
   };
 

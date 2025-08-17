@@ -125,10 +125,19 @@ const MessengerModal = ({ isOpen, onClose, onPinClick }) => {
       }
 
       // Save message to backend database with Irys ID
-      const response = await axios.post(`${API}/messages`, {
-        ...messageData,
-        irysId: irysId // Store Irys transaction ID for reference
-      });
+      const backendMessageData = {
+        sender: address,
+        receiver: otherParticipant,
+        content: newMessage.trim(),
+        messageType: 'text'
+      };
+      
+      // Only add irysId if it exists - extract the ID string from the response object
+      if (irysId) {
+        backendMessageData.irysId = typeof irysId === 'object' ? irysId.id : irysId;
+      }
+      
+      const response = await axios.post(`${API}/messages`, backendMessageData);
 
       setMessages([...messages, response.data]);
       setNewMessage("");
@@ -137,7 +146,9 @@ const MessengerModal = ({ isOpen, onClose, onPinClick }) => {
       loadConversations();
     } catch (error) {
       console.error("Error sending message:", error);
-      toast.error("Failed to send message");
+      console.error("Error response:", error.response?.data);
+      console.error("Error status:", error.response?.status);
+      toast.error(`Failed to send message: ${error.response?.data?.details || error.message}`);
     } finally {
       setSending(false);
     }

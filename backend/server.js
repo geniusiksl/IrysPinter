@@ -623,7 +623,7 @@ app.get('/api/users/:address/following', async (req, res) => {
 app.get('/api/conversations/:address', async (req, res) => {
   try {
     const address = req.params.address;
-    const conversations = await Conversation.find({ participants: address })
+    const conversations = await Conversation.find({ participants: { $in: [address] } })
       .populate('lastMessage')
       .sort({ lastMessageAt: -1 });
     
@@ -682,26 +682,36 @@ app.get('/api/conversations/:conversationId/messages', async (req, res) => {
 // Send a message
 app.post('/api/messages', async (req, res) => {
   try {
+    console.log('Received message request:', req.body);
     const { sender, receiver, content, messageType, pinId, image_url, pinData, irysId } = req.body;
     
     if (!sender || !receiver || !content) {
+      console.log('Missing required fields:', { sender, receiver, content });
       return res.status(400).json({ error: 'Sender, receiver, and content are required' });
     }
     
+    console.log('Finding conversation for participants:', [sender, receiver]);
     // Find or create conversation
     let conversation = await Conversation.findOne({
       participants: { $all: [sender, receiver] }
     });
     
     if (!conversation) {
+      console.log('Creating new conversation');
       conversation = new Conversation({
         participants: [sender, receiver],
+        unreadCount: new Map(),
         created_at: new Date(),
         updated_at: new Date(),
       });
+      await conversation.save();
+      console.log('New conversation created:', conversation._id);
+    } else {
+      console.log('Found existing conversation:', conversation._id);
     }
     
     // Create message
+    console.log('Creating message...');
     const message = new Message({
       sender,
       receiver,
@@ -714,25 +724,30 @@ app.post('/api/messages', async (req, res) => {
       created_at: new Date(),
     });
     
-    console.log('Creating message with pinData:', pinData);
     await message.save();
-    console.log('Saved message:', message.toObject());
+    console.log('Message saved successfully:', message._id);
     
     // Update conversation
+    console.log('Updating conversation...');
     conversation.lastMessage = message._id;
     conversation.lastMessageAt = new Date();
     conversation.updated_at = new Date();
     
     // Update unread count for receiver
+    if (!conversation.unreadCount) {
+      conversation.unreadCount = new Map();
+    }
     const currentUnread = conversation.unreadCount.get(receiver) || 0;
     conversation.unreadCount.set(receiver, currentUnread + 1);
     
     await conversation.save();
+    console.log('Conversation updated successfully');
     
     res.json(message);
   } catch (e) {
-    console.error('Error sending message:', e);
-    res.status(500).json({ error: 'Failed to send message', details: e.message });
+    console.error('Detailed error sending message:', e);
+    console.error('Error stack:', e.stack);
+    res.status(500).json({ error: 'Failed to send message', details: e.message, stack: e.stack });
   }
 });
 

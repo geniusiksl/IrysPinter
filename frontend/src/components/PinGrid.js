@@ -56,7 +56,7 @@ const PinCard = ({ pin, onClick, onUserClick, isOwner }) => {
     >
       <div className="relative bg-gradient-to-br from-gray-50 to-gray-100 h-48 flex-shrink-0 rounded-t-2xl overflow-hidden">
         {pin.image_url ? (
-          <div className="h-full w-full overflow-hidden">
+          <>
             <img
               src={`${pin.image_url}?t=${Date.now()}&id=${pin._id || pin.id}`}
               alt={pin.title}
@@ -64,15 +64,20 @@ const PinCard = ({ pin, onClick, onUserClick, isOwner }) => {
               loading="lazy"
               onError={(e) => {
                 console.error("Failed to load image:", pin.image_url);
-                if (e.target) {
+                if (e.target && e.target.parentElement) {
                   e.target.style.display = 'none';
-                  if (e.target.nextSibling) {
-                    e.target.nextSibling.style.display = 'flex';
+                  const fallbackDiv = e.target.parentElement.querySelector('.image-fallback');
+                  if (fallbackDiv) {
+                    fallbackDiv.style.display = 'flex';
                   }
                 }
               }}
             />
-          </div>
+            <div className="image-fallback h-full w-full flex-col items-center justify-center text-gray-400 bg-gradient-to-br from-gray-100 to-gray-200 absolute inset-0" style={{display: 'none'}}>
+              <div className="text-4xl mb-2 opacity-60">🎨</div>
+              <p className="text-sm font-medium">Image failed to load</p>
+            </div>
+          </>
         ) : (
           <div className="h-full w-full flex flex-col items-center justify-center text-gray-400 bg-gradient-to-br from-gray-100 to-gray-200">
             <div className="text-4xl mb-2 opacity-60">🎨</div>

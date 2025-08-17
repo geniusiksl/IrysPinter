@@ -321,35 +321,9 @@ export default function EthereumWalletProvider({ children }) {
 
       const ethersProvider = new ethers.providers.Web3Provider(instance);
       
-      // Проверяем и переключаем на Arbitrum
+      // Just get network info without any messages
       const network = await ethersProvider.getNetwork();
-      if (network.chainId !== 42161) { // Arbitrum One
-        try {
-          // Пытаемся переключиться на Arbitrum
-          await instance.request({
-            method: 'wallet_switchEthereumChain',
-            params: [{ chainId: '0xa4b1' }], // Arbitrum One chainId в hex
-          });
-        } catch (switchError) {
-          // Если сеть не добавлена, добавляем её
-          if (switchError.code === 4902) {
-            await instance.request({
-              method: 'wallet_addEthereumChain',
-              params: [{
-                chainId: '0xa4b1',
-                chainName: 'Arbitrum One',
-                nativeCurrency: {
-                  name: 'ETH',
-                  symbol: 'ETH',
-                  decimals: 18
-                },
-                rpcUrls: ['https://arb1.arbitrum.io/rpc'],
-                blockExplorerUrls: ['https://arbiscan.io']
-              }]
-            });
-          }
-        }
-      }
+      console.log(`Connected to network ${network.name} (chainId: ${network.chainId})`);
       
       setProvider(ethersProvider);
       const signer = ethersProvider.getSigner();
