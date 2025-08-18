@@ -25,6 +25,8 @@ const ProfileModal = ({ isOpen, onClose }) => {
     bio: '',
     avatar_url: ''
   });
+  const [selectedAvatarFile, setSelectedAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState(null);
   const [stats, setStats] = useState({
     totalPins: 0,
     totalLikes: 0,
@@ -64,6 +66,10 @@ const ProfileModal = ({ isOpen, onClose }) => {
         bio: profileData?.bio || '',
         avatar_url: profileData?.avatar_url || ''
       });
+      
+      // Сбрасываем состояние аватара при загрузке профиля
+      setSelectedAvatarFile(null);
+      setAvatarPreview(null);
       
       // Загружаем статистику
       const statsData = await profileService.getUserStats(address);
@@ -131,48 +137,46 @@ const ProfileModal = ({ isOpen, onClose }) => {
     }
   };
 
-  const handleAvatarUpload = async (file) => {
+  const handleAvatarSelect = (file) => {
     if (!file) return;
+    
+    // Проверяем тип файла
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+    
+    // Проверяем размер файла (максимум 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size should be less than 5MB');
+      return;
+    }
+    
+    // Сохраняем файл для последующей загрузки
+    setSelectedAvatarFile(file);
+    
+    // Создаем превью
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setAvatarPreview(e.target.result);
+    };
+    reader.readAsDataURL(file);
+    
+    toast.success('Avatar selected! Click Save to upload.');
+  };
+
+  const handleAvatarUpload = async () => {
+    if (!selectedAvatarFile) return;
     
     try {
       console.log("Starting avatar upload...");
       
-      // Проверяем тип файла
-      if (!file.type.startsWith('image/')) {
-        toast.error('Please select an image file');
-        return;
-      }
-      
-      // Проверяем размер файла (максимум 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('File size should be less than 5MB');
-        return;
-      }
-      
       toast.loading('Uploading avatar to Irys...');
-      
-      // Проверяем баланс Irys перед загрузкой
-      const balance = await checkIrysBalance();
-      console.log(`Current Irys balance: ${balance} ETH`);
-      
-      // Если баланс недостаточен, пытаемся пополнить
-      if (parseFloat(balance) < 0.001) {
-        console.log('Insufficient Irys balance, attempting to fund account...');
-        try {
-          await fundIrysAccount(0.001);
-          console.log('Irys account funded successfully');
-          // Обновляем баланс после пополнения
-          await loadIrysBalance();
-        } catch (fundError) {
-          console.error('Failed to fund Irys account:', fundError);
-          throw new Error(`Insufficient Irys balance (${balance} ETH) and failed to fund account: ${fundError.message}`);
-        }
-      }
       
       console.log("Calling uploadToIrys...");
       // Загружаем файл на Irys
-      const uploadResult = await uploadToIrys(file, {
-        "Content-Type": file.type,
+      const uploadResult = await uploadToIrys(selectedAvatarFile, {
+        "Content-Type": selectedAvatarFile.type,
         "application-id": "IrysPinter",
         "type": "avatar"
       });
@@ -185,15 +189,10 @@ const ProfileModal = ({ isOpen, onClose }) => {
         avatar_url: uploadResult.url
       }));
       
-      toast.dismiss();
       toast.success('Avatar uploaded to Irys successfully!');
-      
-      // Обновляем баланс после загрузки
-      await loadIrysBalance();
       
     } catch (error) {
       console.error('Error uploading avatar:', error);
-      toast.dismiss();
       
       // Более информативное сообщение об ошибке
       let errorMessage = 'Failed to upload avatar to Irys';
@@ -221,7 +220,7 @@ const ProfileModal = ({ isOpen, onClose }) => {
   const handleFileSelect = (event) => {
     const file = event.target.files[0];
     if (file) {
-      handleAvatarUpload(file);
+      handleAvatarSelect(file);
     }
   };
 
@@ -242,13 +241,37 @@ const ProfileModal = ({ isOpen, onClose }) => {
         return;
       }
       
-      const updatedProfile = await profileService.updateUserProfile(address, editForm);
+      let profileDataToSave = { ...editForm };
+      
+      // Если выбран новый аватар, загружаем его в Irys
+      if (selectedAvatarFile) {
+        console.log("Uploading avatar to Irys...");
+        toast.loading('Uploading avatar...');
+        
+        const uploadResult = await uploadToIrys(selectedAvatarFile, {
+          "Content-Type": selectedAvatarFile.type,
+          "application-id": "IrysPinter",
+          "type": "avatar"
+        });
+        
+        profileDataToSave.avatar_url = uploadResult.url;
+        console.log("Avatar uploaded successfully:", uploadResult.url);
+      }
+      
+      const updatedProfile = await profileService.updateUserProfile(address, profileDataToSave);
       setUserProfile(updatedProfile);
       setIsEditing(false);
+      
+      // Сбрасываем состояние аватара
+      setSelectedAvatarFile(null);
+      setAvatarPreview(null);
+      
+      toast.dismiss();
       toast.success("Profile updated successfully!");
     } catch (error) {
       console.error("Error updating profile:", error);
       const errorMessage = error.response?.data?.error || error.message || "Failed to update profile";
+      toast.dismiss();
       toast.error(errorMessage);
     } finally {
       setSaving(false);
@@ -262,6 +285,10 @@ const ProfileModal = ({ isOpen, onClose }) => {
       bio: userProfile?.bio || '',
       avatar_url: userProfile?.avatar_url || ''
     });
+    
+    // Сбрасываем состояние аватара
+    setSelectedAvatarFile(null);
+    setAvatarPreview(null);
     setIsEditing(false);
   };
 
@@ -349,9 +376,9 @@ const ProfileModal = ({ isOpen, onClose }) => {
           
           <div className="flex items-center space-x-4">
             <div className="relative">
-              {userProfile?.avatar_url ? (
+              {(avatarPreview || userProfile?.avatar_url) ? (
                 <img
-                  src={userProfile.avatar_url}
+                  src={avatarPreview || userProfile.avatar_url}
                   alt="Avatar"
                   className="w-16 h-16 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
                   onClick={handleAvatarClick}
