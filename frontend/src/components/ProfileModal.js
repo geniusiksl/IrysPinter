@@ -242,20 +242,115 @@ const ProfileModal = ({ isOpen, onClose }) => {
       }
       
       let profileDataToSave = { ...editForm };
+
+      // Вспомогательная функция: таймаут для Irys загрузки
+      const withTimeout = (promise, ms, onTimeoutMessage) => {
+        let timeoutId;
+        const timeoutPromise = new Promise((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error(onTimeoutMessage || 'Upload timed out')), ms);
+        });
+        return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timeoutId));
+      };
       
       // Если выбран новый аватар, загружаем его в Irys
       if (selectedAvatarFile) {
         console.log("Uploading avatar to Irys...");
-        toast.loading('Uploading avatar...');
+        const toastId = toast.loading('Uploading avatar...');
         
-        const uploadResult = await uploadToIrys(selectedAvatarFile, {
-          "Content-Type": selectedAvatarFile.type,
-          "application-id": "IrysPinter",
-          "type": "avatar"
-        });
-        
-        profileDataToSave.avatar_url = uploadResult.url;
-        console.log("Avatar uploaded successfully:", uploadResult.url);
+        try {
+          const uploadResult = await withTimeout(
+            uploadToIrys(selectedAvatarFile, {
+              "Content-Type": selectedAvatarFile.type,
+              "application-id": "IrysPinter",
+              "type": "avatar"
+            }),
+            60000,
+            'Avatar upload timed out. Please try again.'
+          );
+          profileDataToSave.avatar_url = uploadResult.url;
+          console.log("✅ Avatar uploaded to Irys:", {
+            txid: uploadResult.id,
+            gatewayUrl: `https://gateway.irys.xyz/${uploadResult.id}`
+          });
+        } catch (e) {
+          console.error('Avatar upload error:', e);
+          throw e;
+        } finally {
+          toast.dismiss(toastId);
+        }
+      }
+      
+      // Загружаем био в Irys (как JSON), сохраняем URL/txid
+      if (typeof editForm.bio === 'string' && editForm.bio.trim().length > 0) {
+        const bioPayload = {
+          address,
+          bio: editForm.bio.trim(),
+          timestamp: new Date().toISOString(),
+          version: '1.0'
+        };
+        const bioBlob = new Blob([JSON.stringify(bioPayload)], { type: 'application/json' });
+        const toastId = toast.loading('Uploading bio...');
+        try {
+          const bioUpload = await withTimeout(
+            uploadToIrys(bioBlob, {
+              'Content-Type': 'application/json',
+              'application-id': 'IrysPinter',
+              'type': 'bio'
+            }),
+            60000,
+            'Bio upload timed out. Please try again.'
+          );
+          profileDataToSave.bio_irys_url = bioUpload.url;
+          profileDataToSave.bio_irys_txid = bioUpload.id;
+          console.log("✅ Bio uploaded to Irys:", {
+            txid: bioUpload.id,
+            gatewayUrl: `https://gateway.irys.xyz/${bioUpload.id}`
+          });
+          toast.success(`Bio saved to Irys: https://gateway.irys.xyz/${bioUpload.id}`);
+        } catch (e) {
+          console.error('Bio upload error:', e);
+          // Продолжаем сохранение локального био, но показываем ошибку
+          toast.error(e.message || 'Failed to upload bio to Irys');
+        } finally {
+          toast.dismiss(toastId);
+        }
+      }
+
+      // Загружаем полный профиль в Irys (username/displayName/bio/avatar_url)
+      try {
+        const profilePayload = {
+          address,
+          username: editForm.username || '',
+          displayName: editForm.displayName || '',
+          bio: editForm.bio || '',
+          avatar_url: profileDataToSave.avatar_url || editForm.avatar_url || '',
+          timestamp: new Date().toISOString(),
+          version: '1.0'
+        };
+        const profileBlob = new Blob([JSON.stringify(profilePayload)], { type: 'application/json' });
+        const toastId = toast.loading('Uploading profile...');
+        try {
+          const profUpload = await withTimeout(
+            uploadToIrys(profileBlob, {
+              'Content-Type': 'application/json',
+              'application-id': 'IrysPinter',
+              'type': 'profile'
+            }),
+            60000,
+            'Profile upload timed out. Please try again.'
+          );
+          profileDataToSave.profile_irys_url = profUpload.url;
+          profileDataToSave.profile_irys_txid = profUpload.id;
+          console.log("✅ Profile JSON uploaded to Irys:", {
+            txid: profUpload.id,
+            gatewayUrl: `https://gateway.irys.xyz/${profUpload.id}`
+          });
+          toast.success(`Profile saved to Irys: https://gateway.irys.xyz/${profUpload.id}`);
+        } finally {
+          toast.dismiss(toastId);
+        }
+      } catch (e) {
+        console.error('Profile JSON upload error:', e);
       }
       
       const updatedProfile = await profileService.updateUserProfile(address, profileDataToSave);

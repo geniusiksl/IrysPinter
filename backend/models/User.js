@@ -5,6 +5,10 @@ const UserSchema = new mongoose.Schema({
   username: { type: String, unique: true, sparse: true },
   displayName: { type: String, default: '' },
   bio: { type: String, default: '' },
+  bio_irys_url: { type: String },
+  bio_irys_txid: { type: String },
+  profile_irys_url: { type: String },
+  profile_irys_txid: { type: String },
   avatar_url: { type: String },
   cover_url: { type: String },
   followers: [{ type: String }], // Array of wallet addresses

@@ -109,7 +109,7 @@ const MessengerModal = ({ isOpen, onClose, onPinClick }) => {
           type: 'application/json' 
         });
         
-        irysId = await uploadToIrys(messageBlob, {
+        const irysResult = await uploadToIrys(messageBlob, {
           'App-Name': 'IrysPinter-Messages',
           'App-Version': '1.0',
           'Message-Type': 'chat-message',
@@ -117,7 +117,12 @@ const MessengerModal = ({ isOpen, onClose, onPinClick }) => {
           'Receiver': otherParticipant,
           'Conversation-Id': selectedConversation._id
         });
-        console.log('Message uploaded to Irys with ID:', irysId);
+        irysId = typeof irysResult === 'object' ? irysResult.id : irysResult;
+        console.log('✅ Chat message uploaded to Irys:', {
+          txid: irysId,
+          gatewayUrl: `https://gateway.irys.xyz/${irysId}`
+        });
+        toast.success(`Message saved to Irys: https://gateway.irys.xyz/${irysId}`);
         toast.success('Message saved to Irys!');
       } catch (irysError) {
         console.error('Error uploading to Irys:', irysError);

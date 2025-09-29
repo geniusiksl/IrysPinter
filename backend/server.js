@@ -712,15 +712,15 @@ app.post('/api/messages', async (req, res) => {
     
     // Create message
     console.log('Creating message...');
-    const message = new Message({
+  const message = new Message({
       sender,
       receiver,
       content,
       messageType: messageType || 'text',
       pinId: pinId || null,
       image_url: image_url || null,
-      pinData: pinData || null,
-      irysId: irysId || null,
+    pinData: pinData || null,
+    irysId: (irysId && typeof irysId === 'object') ? irysId.id || null : (irysId || null),
       created_at: new Date(),
     });
     

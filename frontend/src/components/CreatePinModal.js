@@ -57,7 +57,11 @@ const CreatePinModal = ({ onClose, onPinCreated, walletAddress }) => {
         "type": "image"
       });
       
-      console.log("Image uploaded:", imageUpload);
+      console.log("✅ Pin image uploaded to Irys:", {
+        txid: imageUpload.id,
+        gatewayUrl: `https://gateway.irys.xyz/${imageUpload.id}`
+      });
+      toast.success(`Pin image saved to Irys: https://gateway.irys.xyz/${imageUpload.id}`);
       
       // 3. Save pin data to backend
       const pinData = {

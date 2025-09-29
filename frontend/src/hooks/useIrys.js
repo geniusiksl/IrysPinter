@@ -30,10 +30,25 @@ export const useIrys = () => {
   const getIrysUploader = useCallback(async () => {
     try {
       console.log('🔗 Connecting to Irys...');
-      
+      // Ensure wallet is connected/authorized
+      try {
+        await window.ethereum.request({ method: 'eth_requestAccounts' });
+      } catch (reqErr) {
+        console.error('Wallet authorization error:', reqErr);
+        throw new Error('Please authorize your wallet to continue');
+      }
+
       // Создаем Irys instance
       const irys = getIrysWithWallet();
-      await irys.ready();
+      // Add timeout around ready() to avoid indefinite hanging
+      const withTimeout = (promise, ms, message) => {
+        let id;
+        const timeout = new Promise((_, reject) => {
+          id = setTimeout(() => reject(new Error(message || 'Irys connection timed out')), ms);
+        });
+        return Promise.race([promise, timeout]).finally(() => clearTimeout(id));
+      };
+      await withTimeout(irys.ready(), 20000, 'Irys connection timed out');
       
       console.log('✅ Irys connection established:', {
         address: irys.address,
@@ -82,7 +97,15 @@ export const useIrys = () => {
          tags: uploadTags.map(tag => `${tag.name}=${tag.value}`).join(', ')
        });
        
-       const receipt = await irys.upload(buffer, { tags: uploadTags });
+      // Add timeout around upload as well
+      const withTimeout = (promise, ms, message) => {
+        let id;
+        const timeout = new Promise((_, reject) => {
+          id = setTimeout(() => reject(new Error(message || 'Irys upload timed out')), ms);
+        });
+        return Promise.race([promise, timeout]).finally(() => clearTimeout(id));
+      };
+      const receipt = await withTimeout(irys.upload(buffer, { tags: uploadTags }), 60000, 'Irys upload timed out');
        console.log("✅ File uploaded successfully:", {
          transactionId: receipt.id,
          dataSize: buffer.length,

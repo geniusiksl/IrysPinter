@@ -208,7 +208,7 @@ const PinModal = ({ pin, onClose, onPinPurchased, onPinUpdated, currentWallet })
           type: 'application/json' 
         });
         
-        irysId = await uploadToIrys(shareBlob, {
+        const irysResult = await uploadToIrys(shareBlob, {
           'App-Name': 'IrysPinter-Messages',
           'App-Version': '1.0',
           'Message-Type': 'pin-share',
@@ -217,7 +217,12 @@ const PinModal = ({ pin, onClose, onPinPurchased, onPinUpdated, currentWallet })
           'Conversation-Id': conversation._id,
           'Pin-Id': pinData._id
         });
-        console.log('Pin share uploaded to Irys with ID:', irysId);
+        irysId = typeof irysResult === 'object' ? irysResult.id : irysResult;
+        console.log('✅ Pin share uploaded to Irys:', {
+          txid: irysId,
+          gatewayUrl: `https://gateway.irys.xyz/${irysId}`
+        });
+        toast.success(`Pin share saved to Irys: https://gateway.irys.xyz/${irysId}`);
       } catch (irysError) {
         console.error('Error uploading to Irys:', irysError);
         toast.error('Failed to save share to Irys, but will save locally');
@@ -226,7 +231,7 @@ const PinModal = ({ pin, onClose, onPinPurchased, onPinUpdated, currentWallet })
       // Save message to backend database with Irys ID
       const messagePayload = {
         ...shareData,
-        irysId: irysId
+        irysId: irysId || undefined
       };
       
       console.log('Sending message payload to backend:', messagePayload);
