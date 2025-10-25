@@ -222,7 +222,6 @@ const PinModal = ({ pin, onClose, onPinPurchased, onPinUpdated, currentWallet })
           txid: irysId,
           gatewayUrl: `https://gateway.irys.xyz/${irysId}`
         });
-        toast.success(`Pin share saved to Irys: https://gateway.irys.xyz/${irysId}`);
       } catch (irysError) {
         console.error('Error uploading to Irys:', irysError);
         toast.error('Failed to save share to Irys, but will save locally');

@@ -146,12 +146,6 @@ const ProfileModal = ({ isOpen, onClose }) => {
       return;
     }
     
-    // Проверяем размер файла (максимум 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('File size should be less than 5MB');
-      return;
-    }
-    
     // Сохраняем файл для последующей загрузки
     setSelectedAvatarFile(file);
     

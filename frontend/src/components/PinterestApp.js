@@ -61,7 +61,6 @@ const PinterestApp = () => {
   const handlePinCreated = (newPin) => {
     setPins([newPin, ...pins]);
     setShowCreateModal(false);
-    toast.success("Pin created successfully!");
   };
 
   const handlePinClick = async (pinOrId) => {

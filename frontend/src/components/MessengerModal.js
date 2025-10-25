@@ -122,8 +122,6 @@ const MessengerModal = ({ isOpen, onClose, onPinClick }) => {
           txid: irysId,
           gatewayUrl: `https://gateway.irys.xyz/${irysId}`
         });
-        toast.success(`Message saved to Irys: https://gateway.irys.xyz/${irysId}`);
-        toast.success('Message saved to Irys!');
       } catch (irysError) {
         console.error('Error uploading to Irys:', irysError);
         toast.error('Failed to save message to Irys, but will save locally');

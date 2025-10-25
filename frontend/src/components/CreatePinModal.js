@@ -20,10 +20,6 @@ const CreatePinModal = ({ onClose, onPinCreated, walletAddress }) => {
   const handleImageSelect = (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error("File size must be less than 10MB");
-        return;
-      }
       setImage(file);
       setPreviewUrl(URL.createObjectURL(file));
     }
@@ -61,7 +57,6 @@ const CreatePinModal = ({ onClose, onPinCreated, walletAddress }) => {
         txid: imageUpload.id,
         gatewayUrl: `https://gateway.irys.xyz/${imageUpload.id}`
       });
-      toast.success(`Pin image saved to Irys: https://gateway.irys.xyz/${imageUpload.id}`);
       
       // 3. Save pin data to backend
       const pinData = {
@@ -82,7 +77,6 @@ const CreatePinModal = ({ onClose, onPinCreated, walletAddress }) => {
       }
       
       onPinCreated(response.data);
-      toast.success("Pin created successfully!");
       setUploading(false);
       onClose();
     } catch (error) {
